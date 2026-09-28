@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'core/theme/app_theme.dart';
 import 'features/dashboard/presentation/pages/dashboard_page.dart';
 
 class CoffeeExportApp extends StatelessWidget {
@@ -9,9 +10,7 @@ class CoffeeExportApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Exportación de café',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-      ),
+      theme: AppTheme.light,
       home: const DashboardPage(),
     );
   }
