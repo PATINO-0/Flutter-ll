@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutterll/app.dart';
+import 'package:riexport_ue/app.dart';
 
 void main() {
   testWidgets('Muestra la pantalla inicial', (WidgetTester tester) async {
