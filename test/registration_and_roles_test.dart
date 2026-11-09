@@ -13,6 +13,8 @@ import 'package:riexport_ue/features/auth/domain/entities/user_role.dart'; // De
 import 'package:riexport_ue/features/auth/presentation/providers/auth_providers.dart'; // Sustituye autenticación y perfiles.
 
 import 'support/fake_repositories.dart'; // Comparte implementaciones de prueba sin red.
+import 'support/fake_coffee_exports_repository.dart';
+import 'package:riexport_ue/features/exports/presentation/export_providers.dart';
 import 'package:riexport_ue/features/commerce/presentation/providers/commerce_providers.dart'; // Aísla el catálogo y las notificaciones del proyecto real.
 
 /// Inicia la aplicación con dependencias controladas y libera sus recursos al terminar.
@@ -28,6 +30,9 @@ Future<void> mountApp(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        coffeeExportsRepositoryProvider.overrideWithValue(
+          FakeCoffeeExportsRepository(),
+        ),
         commerceRepositoryProvider.overrideWithValue(
           FakeCommerceRepository(),
         ), // Permite probar los nuevos menús sin una conexión remota.

@@ -1,0 +1,104 @@
+{
+  "run": "DEMO-20261109",
+  "steps": [
+    {
+      "name": "01 Cliente inicia convenio",
+      "passed": true,
+      "at": "2026-11-09T15:57:59.298Z"
+    },
+    {
+      "name": "02 Carga de tres soportes del convenio",
+      "passed": true,
+      "at": "2026-11-09T15:58:01.059Z"
+    },
+    {
+      "name": "03 Cliente remite solicitud y consentimiento DEMO",
+      "passed": true,
+      "at": "2026-11-09T15:58:01.252Z"
+    },
+    {
+      "name": "04 Trabajador revisa y propone convenio",
+      "passed": true,
+      "at": "2026-11-09T15:58:01.633Z"
+    },
+    {
+      "name": "05 Titular acepta convenio y recibe asociación",
+      "passed": true,
+      "at": "2026-11-09T15:58:01.988Z"
+    },
+    {
+      "name": "06 Asociado registra cultivo de café",
+      "passed": true,
+      "at": "2026-11-09T15:58:02.177Z"
+    },
+    {
+      "name": "07 Asociado registra lote de 100 kg",
+      "passed": true,
+      "at": "2026-11-09T15:58:02.363Z"
+    },
+    {
+      "name": "08 Ruta disponible para exportación de café",
+      "passed": true,
+      "at": "2026-11-09T15:58:02.543Z"
+    },
+    {
+      "name": "09 Asociado prepara exportación",
+      "passed": true,
+      "at": "2026-11-09T15:58:02.727Z"
+    },
+    {
+      "name": "10 Carga de tres documentos de exportación",
+      "passed": true,
+      "at": "2026-11-09T15:58:04.288Z"
+    },
+    {
+      "name": "11 Cotización y autorización del titular DEMO",
+      "passed": true,
+      "at": "2026-11-09T16:00:01.423Z"
+    },
+    {
+      "name": "12 Trabajador aprueba exportación",
+      "passed": true,
+      "at": "2026-11-09T16:00:01.984Z"
+    },
+    {
+      "name": "13 Transportador toma carga",
+      "passed": true,
+      "at": "2026-11-09T16:00:02.182Z"
+    },
+    {
+      "name": "14 Transporte received",
+      "passed": true,
+      "at": "2026-11-09T16:00:02.375Z"
+    },
+    {
+      "name": "14 Transporte in_transit",
+      "passed": true,
+      "at": "2026-11-09T16:00:02.568Z"
+    },
+    {
+      "name": "14 Transporte delivered",
+      "passed": true,
+      "at": "2026-11-09T16:00:02.751Z"
+    },
+    {
+      "name": "15 Persistencia y acceso documental",
+      "passed": true,
+      "at": "2026-11-09T16:00:03.748Z"
+    }
+  ],
+  "ids": {
+    "association": "2aaae5aa-3a62-4851-8ad8-5c200e0bcd05",
+    "agreement": "74efab15-96d1-4b87-8c5a-811d647f6c2e",
+    "cultivation": "76d9d1a7-6197-41bf-b3b4-633a4c7d5c1d",
+    "lot": "7649aec4-9971-4c33-ac09-c9f9913fa501",
+    "export": "0693bd13-6e13-4b89-987e-796670025c61",
+    "shipment": "34cef469-2c7e-4fab-a050-75478cae4a01"
+  },
+  "trackingCode": "RIT-E85858C243EA4EC5",
+  "result": {
+    "delivered": true,
+    "documents": 3,
+    "checkedAt": "2026-11-09T16:00:03.748Z"
+  }
+}

@@ -41,6 +41,8 @@ migrate_working_dir/
 .env
 .env.*
 !.env.example
+/.demo/
+/android/.kotlin/
 
 # Symbolication related
 app.*.symbols

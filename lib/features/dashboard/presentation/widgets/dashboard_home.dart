@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart'; // Construye la bienvenida personalizada.
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../commerce/presentation/providers/commerce_providers.dart';
+import '../../../exports/presentation/export_providers.dart';
+import '../../../exports/domain/export_models.dart';
 
 import '../../../auth/domain/entities/user_profile.dart'; // Proporciona el nombre y los roles asignados.
 
 /// Explica las funciones disponibles de acuerdo con los roles actuales del usuario.
-class DashboardHome extends StatelessWidget {
+class DashboardHome extends ConsumerWidget {
   const DashboardHome({required this.profile, super.key});
 
   final UserProfile profile; // Recibe el perfil cargado desde el servidor.
 
   /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!profile.canAccessCoffee) {
+      return const Center(
+        child: Text('No tienes acceso al dashboard de café.'),
+      );
+    }
     final theme = Theme.of(
       context,
     ); // Utiliza los estilos definidos por la aplicación.
@@ -35,6 +44,92 @@ class DashboardHome extends StatelessWidget {
                 'Bienvenido, ${profile.fullName}',
                 style: theme.textTheme.titleMedium,
               ),
+              if (profile.canAccessCoffee) ...[
+                const SizedBox(height: 24),
+                Text(
+                  profile.canManageOperations
+                      ? 'Resumen general de café'
+                      : 'Mis operaciones de café',
+                  style: theme.textTheme.titleLarge,
+                ),
+                const Text(
+                  'Los indicadores incluyen únicamente los datos que puedes consultar.',
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      ref.invalidate(coffeeExportLotsProvider);
+                      ref.invalidate(coffeeExportRequestsProvider);
+                      ref.invalidate(coffeeShipmentsProvider);
+                      if (profile.canManageOperations) {
+                        ref.invalidate(customerAccountsProvider);
+                      }
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Actualizar indicadores'),
+                  ),
+                ),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _DashboardMetric(
+                      title: 'Lotes de café',
+                      value: ref
+                          .watch(coffeeExportLotsProvider)
+                          .whenData((rows) => '${rows.length}'),
+                    ),
+                    if (profile.canManageOperations)
+                      _DashboardMetric(
+                        title: 'Clientes y asociados',
+                        value: ref
+                            .watch(customerAccountsProvider)
+                            .whenData((rows) => '${rows.length}'),
+                      ),
+                    _DashboardMetric(
+                      title: 'Solicitudes de exportación',
+                      value: ref
+                          .watch(coffeeExportRequestsProvider)
+                          .whenData((rows) => '${rows.length}'),
+                    ),
+                    _DashboardMetric(
+                      title: 'Exportaciones aceptadas',
+                      value: ref
+                          .watch(coffeeExportRequestsProvider)
+                          .whenData(
+                            (rows) =>
+                                '${rows.where((row) => row.status == 'approved').length}',
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Solicitudes por estado',
+                  style: theme.textTheme.titleMedium,
+                ),
+                _DashboardStates<CoffeeExportRequest>(
+                  value: ref.watch(coffeeExportRequestsProvider),
+                  states: const {
+                    'draft': 'Borrador',
+                    'pending': 'En revisión',
+                    'approved': 'Aceptada',
+                    'rejected': 'Devuelta',
+                  },
+                  statusOf: (row) => row.status,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Transporte por estado',
+                  style: theme.textTheme.titleMedium,
+                ),
+                _DashboardStates<CoffeeShipment>(
+                  value: ref.watch(coffeeShipmentsProvider),
+                  states: coffeeDeliveryStatuses,
+                  statusOf: (row) => row.status,
+                ),
+              ],
               const SizedBox(
                 height: 24,
               ), // Separa el saludo de la información de acceso.
@@ -73,4 +168,74 @@ class DashboardHome extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Presenta un indicador sin convertir errores de consulta en un cero engañoso.
+class _DashboardMetric extends StatelessWidget {
+  const _DashboardMetric({required this.title, required this.value});
+  final String title;
+  final AsyncValue<String> value;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 220,
+    child: Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title),
+            const SizedBox(height: 8),
+            value.when(
+              data: (count) => Text(
+                count,
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              loading: () => const LinearProgressIndicator(),
+              error: (_, _) =>
+                  const Text('No disponible. Actualiza para reintentar.'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Agrupa estados autorizados y conserva los estados nuevos sin omitir registros.
+class _DashboardStates<T> extends StatelessWidget {
+  const _DashboardStates({
+    required this.value,
+    required this.states,
+    required this.statusOf,
+  });
+  final AsyncValue<List<T>> value;
+  final Map<String, String> states;
+  final String Function(T) statusOf;
+
+  @override
+  Widget build(BuildContext context) => value.when(
+    loading: () => const LinearProgressIndicator(),
+    error: (_, _) => const Text(
+      'No fue posible consultar los estados. Actualiza para reintentar.',
+    ),
+    data: (rows) {
+      final counts = {for (final state in states.keys) state: 0};
+      for (final row in rows) {
+        final state = statusOf(row);
+        counts[state] = (counts[state] ?? 0) + 1;
+      }
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final entry in counts.entries)
+            Chip(
+              label: Text('${states[entry.key] ?? entry.key}: ${entry.value}'),
+            ),
+        ],
+      );
+    },
+  );
 }

@@ -1,5 +1,9 @@
 import 'dart:async'; // Evita esperas indefinidas en las operaciones comerciales.
 import 'dart:typed_data'; // Representa documentos seleccionados en móvil, escritorio y web.
+import 'package:flutter/foundation.dart'
+    show
+        debugPrint,
+        kDebugMode; // Registra únicamente códigos de diagnóstico en desarrollo.
 import 'package:supabase_flutter/supabase_flutter.dart'; // Utiliza la sesión actual y las políticas del servidor.
 import 'package:url_launcher/url_launcher.dart'; // Abre documentos autorizados con el visor del dispositivo.
 import '../../../../core/errors/app_exception.dart'; // Traduce fallos técnicos a mensajes de interfaz.
@@ -21,6 +25,9 @@ class SupabaseCommerceRepository implements CommerceRepository {
     } on AppException {
       rethrow;
     } on PostgrestException catch (error) {
+      if (kDebugMode) {
+        debugPrint('Ritech commerce: PostgREST code=${error.code}');
+      } // No registra mensajes del chat, credenciales ni detalles del servidor.
       if (['P0001', '22023'].contains(error.code)) {
         throw AppException(error.message);
       }
@@ -39,16 +46,19 @@ class SupabaseCommerceRepository implements CommerceRepository {
           'Este servicio todavía no está disponible. Contacta al administrador.',
         );
       }
-      throw const AppException(
-        'No fue posible completar la operación. Actualiza e intenta nuevamente.',
+      throw AppException(
+        'No fue posible completar la operación. Actualiza e intenta nuevamente. Referencia: ${error.code ?? 'sin código'}.',
       );
     } on TimeoutException {
       throw const AppException(
         'La conexión tardó demasiado. Intenta nuevamente.',
       );
-    } catch (_) {
-      throw const AppException(
-        'No fue posible completar la operación. Verifica tu conexión.',
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('Ritech commerce: exception=${error.runtimeType}');
+      }
+      throw AppException(
+        'No fue posible completar la operación. Verifica tu conexión. Referencia: ${error.runtimeType}.',
       );
     }
   }

@@ -84,7 +84,12 @@ class _SupportChatPageState extends ConsumerState<SupportChatPage> {
 
   /// Renueva los datos de esta sección conservando el estado local de su pantalla.
   void _refresh() {
-    if (mounted) setState(() => _messages = _load());
+    if (!mounted) return;
+    setState(
+      () {
+        _messages = _load();
+      },
+    ); // setState requiere una función síncrona que no devuelva el Future de la consulta.
   } // Conserva la pantalla y renueva únicamente su historial.
 
   /// Conserva el mensaje escrito hasta que el servidor confirme su envío.

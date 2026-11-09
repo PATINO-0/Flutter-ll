@@ -113,11 +113,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
       ];
     } // El transportador no hereda los módulos del empleado.
     return [
-      if (profile.effectiveRole?.value != 'client')
+      if (profile.canAccessCoffee)
         const _DashboardSection(
           'Panel principal',
           Icons.dashboard_outlined,
         ), // El cliente entra directamente a su tienda.
+      if (profile.roles.isEmpty)
+        const _DashboardSection('Sin acceso asignado', Icons.lock_outline),
       if (profile.canAccessStore)
         const _DashboardSection('Tienda', Icons.storefront_outlined),
       if (profile.effectiveRole?.value == 'client' ||
@@ -202,6 +204,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   /// Abre el módulo autorizado por la sección efectiva del usuario.
   Widget _buildContent(UserProfile profile, _DashboardSection section) {
     switch (section.title) {
+      case 'Sin acceso asignado':
+        return const Center(
+          child: Text(
+            'Todavía no tienes roles asignados. Contacta al administrador para solicitar acceso a los módulos.',
+          ),
+        );
       case 'Mis envíos':
         return const CoffeeShipmentHistoryPage();
       case 'Exportaciones':

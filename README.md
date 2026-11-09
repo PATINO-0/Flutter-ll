@@ -216,7 +216,9 @@ El inventario incluye todas las clases y enumeraciones de producción, también 
 | `DashboardPage` | [lib/features/dashboard/presentation/pages/dashboard_page.dart](lib/features/dashboard/presentation/pages/dashboard_page.dart) | Presenta únicamente los módulos autorizados para el rol efectivo de la sesión. |
 | `_DashboardPageState` | [lib/features/dashboard/presentation/pages/dashboard_page.dart](lib/features/dashboard/presentation/pages/dashboard_page.dart) | Conserva la sección elegida y comprueba permisos y avisos sin reiniciar las pantallas abiertas. |
 | `_DashboardSection` | [lib/features/dashboard/presentation/pages/dashboard_page.dart](lib/features/dashboard/presentation/pages/dashboard_page.dart) | Describe el título, icono y contador de una opción autorizada del panel. |
-| `DashboardHome` | [lib/features/dashboard/presentation/widgets/dashboard_home.dart](lib/features/dashboard/presentation/widgets/dashboard_home.dart) | Explica al usuario su identidad, roles y alcance efectivo dentro de Ritech. |
+| `DashboardHome` | [lib/features/dashboard/presentation/widgets/dashboard_home.dart](lib/features/dashboard/presentation/widgets/dashboard_home.dart) | Presenta lotes de café, clientes/asociados para el personal, solicitudes, exportaciones aceptadas y estados autorizados; permite actualizar los indicadores. |
+| `_DashboardMetric` | [lib/features/dashboard/presentation/widgets/dashboard_home.dart](lib/features/dashboard/presentation/widgets/dashboard_home.dart) | Presenta un conteo con estados de carga y error, sin confundir un fallo con cero registros. |
+| `_DashboardStates` | [lib/features/dashboard/presentation/widgets/dashboard_home.dart](lib/features/dashboard/presentation/widgets/dashboard_home.dart) | Agrupa solicitudes y transporte por sus estados y conserva estados nuevos sin omitir registros. |
 | `SupabaseCoffeeExportsRepository` | [lib/features/exports/data/supabase_coffee_exports_repository.dart](lib/features/exports/data/supabase_coffee_exports_repository.dart) | Invoca los servicios protegidos de cultivos, lotes, tarifas, exportaciones y transportadores. |
 | `CoffeeExportsRepository` | [lib/features/exports/domain/coffee_exports_repository.dart](lib/features/exports/domain/coffee_exports_repository.dart) | Define inventario, cotización, documentos, revisión, transporte y entrega de café. |
 | `CoffeeCultivation` | [lib/features/exports/domain/export_models.dart](lib/features/exports/domain/export_models.dart) | Representa un cultivo, su ubicación, variedad, área e identidad del titular. |
@@ -301,6 +303,10 @@ Administración crea las cinco cuentas de prueba desde **Transportadores → Cre
 
 ## Verificación y artefactos
 
+El alcance de esta entrega es exclusivamente café con Flutter y Supabase. El [guion de demostración](docs/demo_guide.md) explica las cuentas DEMO, el ensayo por roles y el recorrido de respaldo. Las contraseñas y el estado privado del ensayo se conservan en `.demo/`, excluido de Git; la [evidencia del backend](docs/demo_backend_evidence.json) contiene únicamente pasos e identificadores.
+
+La [verificación de entrega del 9 de noviembre](docs/verification_20261109.md) registra las 125 pruebas aprobadas, la comprobación del backend y los límites de la validación.
+
 ```powershell
 flutter analyze --no-pub
 flutter test --no-pub
@@ -309,12 +315,13 @@ npm test --prefix supabase/tests
 npm exec --yes --package=deno -- deno test --allow-env supabase/functions
 python tool/verify_documentation.py
 flutter build apk --debug --no-pub
+flutter build apk --release --no-pub
 flutter build web --no-pub
 ```
 
 Flutter comprueba formularios, roles, estabilidad de sondeos, consentimiento, rutas y supervisión. PGlite ejecuta reglas de PostgreSQL con Auth y Storage simulados; la suite final instala el esquema completo. Deno verifica autorización, compensación y CORS. Las pruebas no crean cuentas reales. Correo, archivos nativos y concurrencia con varias conexiones requieren validación contra el proyecto alojado.
 
-Los artefactos están en `build/app/outputs/flutter-apk/app-debug.apk` y `build/web/`. `build/` se excluye de Git; el repositorio conserva el código necesario para reproducirlos.
+Los artefactos están en `build/app/outputs/flutter-apk/app-debug.apk`, `build/app/outputs/flutter-apk/app-release.apk` y `build/web/`. `build/` se excluye de Git; el repositorio conserva el código necesario para reproducirlos. El APK release conserva la firma de desarrollo configurada en el proyecto y sirve para instalación directa en la demostración; publicar en una tienda requiere configurar la firma de distribución.
 
 ## Guías y mantenimiento
 
