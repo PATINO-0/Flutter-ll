@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:riexport_ue/core/theme/app_theme.dart';
 import 'package:riexport_ue/features/auth/domain/entities/user_role.dart';
 import 'package:riexport_ue/features/commerce/presentation/providers/commerce_providers.dart';
 import 'package:riexport_ue/features/dashboard/presentation/widgets/dashboard_home.dart';
@@ -28,6 +29,7 @@ void main() {
     WidgetTester tester,
     UserRole role, {
     bool fail = false,
+    double textScale = 1,
   }) async {
     queries = 0;
     await tester.pumpWidget(
@@ -71,11 +73,40 @@ void main() {
           }),
         ],
         child: MaterialApp(
+          theme: AppTheme.light,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          ),
           home: Scaffold(body: DashboardHome(profile: buildProfile([role]))),
         ),
       ),
     );
     await tester.pumpAndSettle();
+  }
+
+  for (final width in [320.0, 390.0, 768.0, 1280.0]) {
+    testWidgets('El dashboard cabe a $width px y permite leer sus estados', (
+      tester,
+    ) async {
+      tester.view.physicalSize = Size(width, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await mount(tester, UserRole.admin, textScale: width == 320 ? 2 : 1);
+      expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.text('Tus roles en Ritech'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      for (final element in find.byType(Card).evaluate()) {
+        final box = element.renderObject! as RenderBox;
+        final position = box.localToGlobal(Offset.zero);
+        expect(position.dx, greaterThanOrEqualTo(0));
+        expect(position.dx + box.size.width, lessThanOrEqualTo(width + 0.1));
+      }
+    });
   }
 
   testWidgets(

@@ -328,6 +328,7 @@ Los artefactos están en `build/app/outputs/flutter-apk/app-debug.apk`, `build/a
 - [Registro, roles y diagnóstico administrativo](docs/registration_and_roles.md).
 - [Convenios y atención](docs/association_workflow.md).
 - [Exportaciones y transporte](docs/coffee_exports_and_transport.md).
+- [Ajustes de frontend y guion del Sprint 4](docs/sprint4_frontend.md).
 
 Al cambiar reglas, actualiza SQL, interfaz, pruebas y documentación. `tool/verify_documentation.py` comprueba comentarios de clases y su presencia en este catálogo. Los archivos generados por plataformas y compilaciones se administran con sus herramientas correspondientes.
 

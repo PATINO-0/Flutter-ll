@@ -38,11 +38,39 @@ class DashboardHome extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment
                 .start, // Alinea la bienvenida y los permisos.
             children: [
-              Text('Panel principal', style: theme.textTheme.headlineMedium),
-              const SizedBox(height: 8), // Separa el título del saludo.
-              Text(
-                'Bienvenido, ${profile.fullName}',
-                style: theme.textTheme.titleMedium,
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Panel principal',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: theme.colorScheme.onPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Bienvenido, ${profile.fullName}',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.onPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Acceso actual: ${profile.effectiveRole?.label ?? 'Sin rol asignado'}',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.onPrimary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               if (profile.canAccessCoffee) ...[
                 const SizedBox(height: 24),
@@ -52,9 +80,14 @@ class DashboardHome extends ConsumerWidget {
                       : 'Mis operaciones de café',
                   style: theme.textTheme.titleLarge,
                 ),
-                const Text(
+                const SizedBox(height: 6),
+                Text(
                   'Los indicadores incluyen únicamente los datos que puedes consultar.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
+                const SizedBox(height: 12),
                 Align(
                   alignment: Alignment.centerRight,
                   child: OutlinedButton.icon(
@@ -70,73 +103,95 @@ class DashboardHome extends ConsumerWidget {
                     label: const Text('Actualizar indicadores'),
                   ),
                 ),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    _DashboardMetric(
-                      title: 'Lotes de café',
-                      value: ref
-                          .watch(coffeeExportLotsProvider)
-                          .whenData((rows) => '${rows.length}'),
-                    ),
-                    if (profile.canManageOperations)
-                      _DashboardMetric(
-                        title: 'Clientes y asociados',
-                        value: ref
-                            .watch(customerAccountsProvider)
-                            .whenData((rows) => '${rows.length}'),
-                      ),
-                    _DashboardMetric(
-                      title: 'Solicitudes de exportación',
-                      value: ref
-                          .watch(coffeeExportRequestsProvider)
-                          .whenData((rows) => '${rows.length}'),
-                    ),
-                    _DashboardMetric(
-                      title: 'Exportaciones aceptadas',
-                      value: ref
-                          .watch(coffeeExportRequestsProvider)
-                          .whenData(
-                            (rows) =>
-                                '${rows.where((row) => row.status == 'approved').length}',
+                const SizedBox(height: 12),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final count = profile.canManageOperations ? 4 : 3;
+                    final largeText =
+                        MediaQuery.textScalerOf(context).scale(14) > 20;
+                    final columns = largeText || constraints.maxWidth < 460
+                        ? 1
+                        : constraints.maxWidth >= 900
+                        ? count
+                        : 2;
+                    final width =
+                        (constraints.maxWidth - 12 * (columns - 1)) / columns;
+                    return Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        _DashboardMetric(
+                          width: width,
+                          icon: Icons.coffee_outlined,
+                          title: 'Lotes de café',
+                          value: ref
+                              .watch(coffeeExportLotsProvider)
+                              .whenData((rows) => '${rows.length}'),
+                        ),
+                        if (profile.canManageOperations)
+                          _DashboardMetric(
+                            width: width,
+                            icon: Icons.people_outline,
+                            title: 'Clientes y asociados',
+                            value: ref
+                                .watch(customerAccountsProvider)
+                                .whenData((rows) => '${rows.length}'),
                           ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Solicitudes por estado',
-                  style: theme.textTheme.titleMedium,
-                ),
-                _DashboardStates<CoffeeExportRequest>(
-                  value: ref.watch(coffeeExportRequestsProvider),
-                  states: const {
-                    'draft': 'Borrador',
-                    'pending': 'En revisión',
-                    'approved': 'Aceptada',
-                    'rejected': 'Devuelta',
+                        _DashboardMetric(
+                          width: width,
+                          icon: Icons.description_outlined,
+                          title: 'Solicitudes de exportación',
+                          value: ref
+                              .watch(coffeeExportRequestsProvider)
+                              .whenData((rows) => '${rows.length}'),
+                        ),
+                        _DashboardMetric(
+                          width: width,
+                          icon: Icons.task_alt,
+                          title: 'Exportaciones aceptadas',
+                          value: ref
+                              .watch(coffeeExportRequestsProvider)
+                              .whenData(
+                                (rows) =>
+                                    '${rows.where((row) => row.status == 'approved').length}',
+                              ),
+                        ),
+                      ],
+                    );
                   },
-                  statusOf: (row) => row.status,
+                ),
+                const SizedBox(height: 24),
+                _statusPanel(
+                  context,
+                  title: 'Solicitudes por estado',
+                  icon: Icons.assignment_outlined,
+                  child: _DashboardStates<CoffeeExportRequest>(
+                    value: ref.watch(coffeeExportRequestsProvider),
+                    states: const {
+                      'draft': 'Borrador',
+                      'pending': 'En revisión',
+                      'approved': 'Aceptada',
+                      'rejected': 'Devuelta',
+                    },
+                    statusOf: (row) => row.status,
+                  ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  'Transporte por estado',
-                  style: theme.textTheme.titleMedium,
-                ),
-                _DashboardStates<CoffeeShipment>(
-                  value: ref.watch(coffeeShipmentsProvider),
-                  states: coffeeDeliveryStatuses,
-                  statusOf: (row) => row.status,
+                _statusPanel(
+                  context,
+                  title: 'Transporte por estado',
+                  icon: Icons.local_shipping_outlined,
+                  child: _DashboardStates<CoffeeShipment>(
+                    value: ref.watch(coffeeShipmentsProvider),
+                    states: coffeeDeliveryStatuses,
+                    statusOf: (row) => row.status,
+                  ),
                 ),
               ],
               const SizedBox(
                 height: 24,
               ), // Separa el saludo de la información de acceso.
               Text('Tus roles en Ritech', style: theme.textTheme.titleLarge),
-              Text(
-                'Acceso actual: ${profile.effectiveRole?.label ?? 'Sin rol asignado'}',
-              ), // Explica qué nivel predomina cuando existen varios roles.
               const SizedBox(height: 12), // Separa el encabezado de los roles.
               if (profile.roles.isEmpty)
                 const Text(
@@ -168,33 +223,86 @@ class DashboardHome extends ConsumerWidget {
       ),
     );
   }
+
+  /// Agrupa cada etapa sin mezclar solicitudes con estados de transporte.
+  Widget _statusPanel(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) => Card(
+    margin: EdgeInsets.zero,
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                color: Theme.of(context).colorScheme.primary,
+                size: 22,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    ),
+  );
 }
 
 /// Presenta un indicador sin convertir errores de consulta en un cero engañoso.
 class _DashboardMetric extends StatelessWidget {
-  const _DashboardMetric({required this.title, required this.value});
+  const _DashboardMetric({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.width,
+  });
   final String title;
   final AsyncValue<String> value;
+  final IconData icon;
+  final double width;
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: 220,
+    width: width,
     child: Card(
+      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title),
-            const SizedBox(height: 8),
+            Icon(icon, color: Theme.of(context).colorScheme.primary, size: 24),
+            const SizedBox(height: 16),
             value.when(
               data: (count) => Text(
                 count,
-                style: Theme.of(context).textTheme.headlineMedium,
+                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               loading: () => const LinearProgressIndicator(),
               error: (_, _) =>
                   const Text('No disponible. Actualiza para reintentar.'),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),

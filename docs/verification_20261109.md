@@ -46,3 +46,18 @@ La compilación informó avisos de compatibilidad futura de Gradle 8.14, AGP 8.1
 No se afirma ausencia absoluta de errores. No se repitió manualmente cada pantalla en todos los dispositivos ni se hicieron pruebas de carga o concurrencia de producción. El envío de correos, GPS automático, cobros bancarios y publicación en tiendas no forman parte de esta verificación. Los documentos DEMO son sintéticos.
 
 El informe Word y los ajustes locales de VS Code se excluyen de la publicación por indicación del propietario. `.env` y `.demo/` permanecen fuera de Git; `.env.example` contiene solo los nombres de las variables.
+
+## Revisión posterior de frontend — Sprint 4
+
+Se pulieron cuatro archivos de presentación: tema compartido, dashboard, menú y espaciado del acceso móvil. El detalle y el guion de presentación están en [sprint4_frontend.md](sprint4_frontend.md).
+
+- La suite completa de Flutter pasó con **68 pruebas**, incluidas cinco nuevas de adaptación a tamaños de pantalla y texto ampliado.
+- `flutter analyze --no-pub` terminó sin problemas.
+- `flutter build web --release --no-pub --no-wasm-dry-run` terminó correctamente.
+- `flutter build apk --release --no-pub` terminó correctamente (56,6 MB). El APK actualizado se instaló en Pixel_9a. El comando de arranque agotó su espera en el emulador; la inspección posterior de la pantalla confirmó que el formulario de acceso estaba visible.
+- Se inspeccionó la web a 1366 × 900 y 390 × 844. El dashboard conservó sus datos reales; se comprobó el botón de actualización y la navegación del menú al módulo de cultivos y lotes. La consola del navegador no registró errores durante esta comprobación.
+- Las 34 pruebas PostgreSQL y 28 de funciones aprobadas en la revisión anterior corresponden al mismo backend, que no cambió en este ajuste visual. No se volvieron a ejecutar para esta intervención.
+
+El conjunto disponible contiene ahora 130 pruebas (68 Flutter, 34 PostgreSQL y 28 funciones); las cifras anteriores describen la revisión previa, no una pérdida de cobertura.
+
+SHA-256 del APK con el ajuste de frontend: `6EC50E2A695E92F34E7210909C5E776A29E5708509BF7D437C474DF448D69E0A`. Este reemplaza al artefacto de la revisión anterior en `build/app/outputs/flutter-apk/app-release.apk`. La firma de desarrollo y las limitaciones documentadas de la entrega se conservan. La aplicación del teléfono físico no se reinstaló durante esta revisión visual.

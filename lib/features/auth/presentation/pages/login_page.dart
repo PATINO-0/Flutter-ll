@@ -81,7 +81,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   side: const BorderSide(color: Color(0xFFE1E6E3)),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(32),
+                  padding: EdgeInsets.all(
+                    MediaQuery.sizeOf(context).width < 400 ? 20 : 32,
+                  ), // Da espacio a los campos también en teléfonos estrechos.
                   child: Form(
                     key: _formKey,
                     child: Column(

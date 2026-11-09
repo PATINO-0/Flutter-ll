@@ -82,6 +82,25 @@ Future<void> fillRegistration(
 
 void main() {
   testWidgets(
+    'El acceso sigue usable en un móvil estrecho con texto ampliado',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await mountApp(tester, auth: FakeAuthRepository());
+      expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.byType(FilledButton));
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextFormField), findsNWidgets(2));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'El menú móvil muestra las funciones del trabajador sin administración',
     (tester) async {
       tester.view.physicalSize = const Size(

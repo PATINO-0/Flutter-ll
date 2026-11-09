@@ -311,15 +311,37 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                   child: SafeArea(
                     child: Column(
                       children: [
-                        const Padding(
-                          padding: EdgeInsets.all(20),
-                          child: AppBrand(compact: true),
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const AppBrand(compact: true),
+                              const SizedBox(height: 12),
+                              Text(
+                                user.effectiveRole?.label ?? 'Sin rol asignado',
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
+                              ),
+                            ],
+                          ),
                         ),
+                        const Divider(height: 1),
                         Expanded(
                           child: ListView(
                             children: [
                               for (final section in sections)
                                 ListTile(
+                                  selectedTileColor: Theme.of(
+                                    context,
+                                  ).colorScheme.primaryContainer,
+                                  selectedColor: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimaryContainer,
                                   selected:
                                       section.title ==
                                       sections[selectedIndex]
@@ -344,6 +366,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
                             ],
                           ),
                         ),
+                        const Divider(height: 1),
                         ListTile(
                           leading: const Icon(Icons.logout),
                           title: const Text('Cerrar sesión'),
