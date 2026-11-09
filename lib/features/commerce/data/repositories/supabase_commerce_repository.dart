@@ -12,7 +12,7 @@ class SupabaseCommerceRepository implements CommerceRepository {
   const SupabaseCommerceRepository(this._client);
   final SupabaseClient _client; // Nunca contiene una clave administrativa.
   static const _requestSelect =
-      '*,documents:request_documents(*)'; // Consulta los soportes respetando las políticas de acceso.
+      '*,documents:request_documents(*),agreement:agreements(id,status,expires_at,closure_reason)'; // Consulta el expediente y su vigencia respetando las políticas de acceso.
 
   /// Traduce errores sin sustituir permisos rechazados por permisos locales.
   Future<T> _run<T>(Future<T> Function() action) async {
@@ -53,6 +53,7 @@ class SupabaseCommerceRepository implements CommerceRepository {
     }
   }
 
+  /// Consulta el catálogo visible para la sesión y conserva los indicadores de referencia y disponibilidad.
   @override
   Future<List<FreightRate>> listRates() => _run(() async {
     final rows = await _client
@@ -63,6 +64,8 @@ class SupabaseCommerceRepository implements CommerceRepository {
         ); // Obtiene tarifas activas o todas si la sesión tiene administración.
     return rows.map(FreightRate.fromMap).toList();
   });
+
+  /// Guarda una tarifa y sus rutas con permisos exclusivos de administración.
   @override
   Future<void> saveRate(Map<String, dynamic> data) => _run(() async {
     await _client.from('freight_rates').upsert({
@@ -70,6 +73,8 @@ class SupabaseCommerceRepository implements CommerceRepository {
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }); // Las políticas permiten modificar precios solo al administrador.
   });
+
+  /// Recupera clientes y asociados únicamente para personal con permisos vigentes.
   @override
   Future<List<UserProfile>> listCustomers() => _run(() async {
     final rows = await _client.rpc(
@@ -79,6 +84,8 @@ class SupabaseCommerceRepository implements CommerceRepository {
         .map((row) => UserProfile.fromMap(Map<String, dynamic>.from(row)))
         .toList();
   });
+
+  /// Recupera solicitudes autorizadas conservando intentos y respuestas anteriores.
   @override
   Future<List<AssociationRequest>> listRequests() => _run(() async {
     final rows = await _client
@@ -91,6 +98,8 @@ class SupabaseCommerceRepository implements CommerceRepository {
         ); // Conserva los intentos anteriores sin mostrar borradores en la bandeja.
     return rows.map(AssociationRequest.fromMap).toList();
   });
+
+  /// Consulta el expediente autorizado junto con documentos y estado del convenio.
   @override
   Future<AssociationRequest> getRequest(String id) => _run(() async {
     final row = await _client
@@ -100,6 +109,8 @@ class SupabaseCommerceRepository implements CommerceRepository {
         .single(); // Consulta únicamente el expediente permitido por las políticas.
     return AssociationRequest.fromMap(row);
   });
+
+  /// Abre o recupera un borrador después de verificar que no haya otra vinculación abierta.
   @override
   Future<AssociationRequest> startRequest(String ownerId) => _run(() async {
     final id = await _client.rpc(
@@ -147,6 +158,7 @@ class SupabaseCommerceRepository implements CommerceRepository {
     );
   }
 
+  /// Carga un soporte privado y registra solamente una referencia válida del borrador.
   @override
   Future<void> attachDocument(
     AssociationRequest request,
@@ -185,6 +197,8 @@ class SupabaseCommerceRepository implements CommerceRepository {
       },
     ); // Registra solamente archivos existentes del borrador autorizado.
   });
+
+  /// Remite el expediente y registra consentimiento, vigencia propuesta y notificación.
   @override
   Future<String> submitRequest(
     AssociationRequest request, {
@@ -194,6 +208,7 @@ class SupabaseCommerceRepository implements CommerceRepository {
     required String address,
     required String business,
     required bool consent,
+    DateTime? validUntil,
   }) => _run(() async {
     final id = await _client.rpc(
       'submit_association_request',
@@ -205,15 +220,19 @@ class SupabaseCommerceRepository implements CommerceRepository {
         'applicant_address': address.trim(),
         'applicant_business': business.trim(),
         'accepted_data_processing': consent,
+        'valid_until': validUntil?.toUtc().toIso8601String(),
       },
     ); // Guarda la solicitud y el aviso del chat en una sola transacción.
     return id as String;
   });
+
+  /// Aprueba la documentación o devuelve correcciones sin suplantar la aceptación del titular.
   @override
   Future<void> reviewRequest(
     String id, {
     required bool approve,
     String reason = '',
+    DateTime? validUntil,
   }) => _run(() async {
     await _client.rpc(
       'review_association_request',
@@ -221,9 +240,12 @@ class SupabaseCommerceRepository implements CommerceRepository {
         'target_request': id,
         'approve': approve,
         'reason': reason.trim(),
+        'valid_until': validUntil?.toUtc().toIso8601String(),
       },
     ); // El servidor resuelve una sola vez y aplica la promoción al aprobar.
   });
+
+  /// Consulta propuestas y convenios con su expediente original, vigencia y motivo de cierre.
   @override
   Future<List<Agreement>> listAgreements() => _run(() async {
     final rows = await _client
@@ -237,6 +259,34 @@ class SupabaseCommerceRepository implements CommerceRepository {
         ); // Conserva los documentos originales del expediente aprobado.
     return rows.map(Agreement.fromMap).toList();
   });
+
+  /// Registra la aceptación o rechazo únicamente desde la sesión del titular.
+  @override
+  Future<void> respondToAgreement(
+    String id, {
+    required bool accept,
+    required bool acceptedTerms,
+    String reason = '',
+  }) => _run(() async {
+    await _client.rpc(
+      'respond_to_agreement',
+      params: {
+        'target_agreement': id,
+        'accept': accept,
+        'accepted_terms': acceptedTerms,
+        'reason': reason.trim(),
+      },
+    );
+  }); // El servidor valida la identidad del titular, la vigencia y la respuesta única.
+  /// Cierra el convenio con motivo, conserva su historial y notifica al titular.
+  @override
+  Future<void> revokeAgreement(String id, String reason) => _run(() async {
+    await _client.rpc(
+      'revoke_agreement',
+      params: {'target_agreement': id, 'reason': reason.trim()},
+    );
+  }); // La revocación conserva documentos, informa al cliente y sincroniza su rol.
+  /// Solicita un enlace privado de un minuto y lo abre en el visor autorizado del dispositivo.
   @override
   Future<void> openDocument(String path) => _run(() async {
     final url = await _client.storage
@@ -254,6 +304,8 @@ class SupabaseCommerceRepository implements CommerceRepository {
       );
     }
   });
+
+  /// Recupera únicamente los canales autorizados y sus contadores de mensajes sin leer.
   @override
   Future<List<SupportConversation>> listConversations() => _run(() async {
     final rows = await _client.rpc(
@@ -265,6 +317,8 @@ class SupabaseCommerceRepository implements CommerceRepository {
         )
         .toList();
   });
+
+  /// Abre el canal de atención propio o el de un cliente autorizado para el personal.
   @override
   Future<String> openConversation(String ownerId) => _run(() async {
     return await _client.rpc(
@@ -273,6 +327,8 @@ class SupabaseCommerceRepository implements CommerceRepository {
         )
         as String; // Impide abrir conversaciones de otros clientes sin ser trabajador.
   });
+
+  /// Recupera el tramo solicitado del historial respetando el acceso a la conversación.
   @override
   Future<List<SupportMessage>> listMessages(
     String conversationId, {
@@ -293,6 +349,8 @@ class SupabaseCommerceRepository implements CommerceRepository {
         .reversed
         .toList(); // Presenta el tramo de más antiguo a más reciente.
   });
+
+  /// Envía texto humano al canal autorizado sin permitir fabricar notificaciones del sistema.
   @override
   Future<void> sendMessage(String conversationId, String body) =>
       _run(() async {
@@ -304,6 +362,8 @@ class SupabaseCommerceRepository implements CommerceRepository {
           },
         ); // No permite al cliente escribir avisos de sistema.
       });
+
+  /// Confirma el último mensaje consultado y actualiza el contador de la conversación.
   @override
   Future<void> markRead(String conversationId, String lastMessageId) =>
       _run(() async {

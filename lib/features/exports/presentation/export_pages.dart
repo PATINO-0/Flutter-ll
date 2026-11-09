@@ -1,3 +1,4 @@
+import 'dart:async'; // Renueva únicamente las listas visibles sin reconstruir el dashboard.
 import 'package:flutter/material.dart'; // Presenta solicitudes, expedientes y entregas.
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Comparte las consultas del flujo de exportación.
 import '../../auth/presentation/providers/auth_providers.dart'; // Identifica quién puede revisar solicitudes o modificar tarifas.
@@ -17,9 +18,32 @@ class CoffeeExportsPage extends ConsumerStatefulWidget {
   ConsumerState<CoffeeExportsPage> createState() => _CoffeeExportsPageState();
 }
 
+/// Conserva el filtro de archivo y actualiza solicitudes visibles sin cerrar formularios.
 class _CoffeeExportsPageState extends ConsumerState<CoffeeExportsPage> {
+  Timer?
+  _refreshTimer; // Conserva la actualización de solicitudes sin depender del sondeo del perfil.
+  /// Prepara las consultas y recursos locales al abrir la pantalla.
+  @override
+  void initState() {
+    super.initState();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (ModalRoute.of(context)?.isCurrent == true &&
+          !ref.read(coffeeExportRequestsProvider).isLoading) {
+        ref.invalidate(coffeeExportRequestsProvider);
+      } // Espera la consulta anterior y deja intactos los formularios abiertos encima de esta sección.
+    });
+  }
+
+  /// Libera los controladores, suscripciones o temporizadores que conserva esta instancia.
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
   bool _archive =
       false; // Separa solicitudes en curso del archivo de expedientes aceptados.
+  /// Ofrece exclusivamente lotes propios elegibles y abre el formulario de exportación.
   Future<void> _newRequest() async {
     List<CoffeeExportLot> lots;
     try {
@@ -91,12 +115,14 @@ class _CoffeeExportsPageState extends ConsumerState<CoffeeExportsPage> {
     }
   }
 
+  /// Renueva los datos de esta sección conservando el estado local de su pantalla.
   void _refresh() {
     ref.invalidate(coffeeExportRequestsProvider);
     ref.invalidate(coffeeExportLotsProvider);
     ref.invalidate(coffeeShipmentsProvider);
   }
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(currentUserProfileProvider).asData?.value;
@@ -188,9 +214,12 @@ class CoffeeExportDetailPage extends ConsumerStatefulWidget {
       _CoffeeExportDetailPageState();
 }
 
+/// Gestiona aceptación o rechazo de una exportación con motivo y actualización de sus módulos.
 class _CoffeeExportDetailPageState
     extends ConsumerState<CoffeeExportDetailPage> {
   bool _busy = false;
+
+  /// Confirma la decisión del personal y exige explicar las correcciones cuando se rechaza.
   Future<void> _review(bool approve) async {
     final reason = TextEditingController();
     final form = GlobalKey<FormState>();
@@ -258,6 +287,7 @@ class _CoffeeExportDetailPageState
     }
   }
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     final staff =
@@ -382,11 +412,44 @@ class _CoffeeExportDetailPageState
 }
 
 /// Mis envíos contiene solo entregas realizadas; Seguimiento contiene únicamente cargas activas.
-class CoffeeShipmentHistoryPage extends ConsumerWidget {
+class CoffeeShipmentHistoryPage extends ConsumerStatefulWidget {
   const CoffeeShipmentHistoryPage({this.tracking = false, super.key});
   final bool tracking;
   @override
-  Widget build(BuildContext context, WidgetRef ref) => CommerceSection(
+  ConsumerState<CoffeeShipmentHistoryPage> createState() =>
+      _CoffeeShipmentHistoryPageState();
+}
+
+/// Actualiza estados manteniendo la expansión del envío correcto cuando llegan otros registros.
+class _CoffeeShipmentHistoryPageState
+    extends ConsumerState<CoffeeShipmentHistoryPage> {
+  Timer?
+  _refreshTimer; // Actualiza entregas y ubicaciones conservando las tarjetas desplegadas.
+  /// Selecciona seguimiento activo o historial de entregas sin duplicar el componente.
+  bool get tracking => widget.tracking;
+
+  /// Prepara las consultas y recursos locales al abrir la pantalla.
+  @override
+  void initState() {
+    super.initState();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (ModalRoute.of(context)?.isCurrent == true &&
+          !ref.read(coffeeShipmentsProvider).isLoading) {
+        ref.invalidate(coffeeShipmentsProvider);
+      }
+    });
+  }
+
+  /// Libera los controladores, suscripciones o temporizadores que conserva esta instancia.
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
+  @override
+  Widget build(BuildContext context) => CommerceSection(
     title: tracking
         ? 'Seguimiento de exportaciones activas'
         : 'Mis envíos realizados',
@@ -426,6 +489,9 @@ class CoffeeShipmentHistoryPage extends ConsumerWidget {
                 ),
               for (final item in items)
                 Card(
+                  key: ValueKey(
+                    item.id,
+                  ), // Conserva la expansión del envío correcto al llegar otros registros.
                   child: ExpansionTile(
                     title: Text('${item.code} · ${item.lotCode}'),
                     subtitle: Text(

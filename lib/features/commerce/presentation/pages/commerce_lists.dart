@@ -1,3 +1,5 @@
+import 'customer_accounts_page.dart'; // Comparte la consulta y el cierre de convenios del cliente.
+export 'customer_accounts_page.dart'; // Conserva los accesos existentes al listado comercial.
 import 'dart:async'; // Renueva la bandeja para mostrar solicitudes y respuestas nuevas.
 import 'package:flutter/material.dart'; // Construye listas de clientes, expedientes y conversaciones.
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Comparte los resultados del módulo comercial.
@@ -9,10 +11,13 @@ import 'association_form_page.dart'; // Permite iniciar o corregir la solicitud 
 import 'association_detail_page.dart'; // Permite revisar datos y tomar una decisión.
 import 'support_chat_page.dart'; // Abre el canal de atención correspondiente.
 import '../../../exports/presentation/export_providers.dart'; // Abre la coordinación restringida con el transportador.
+import '../widgets/agreement_actions.dart'; // Presenta vigencia y estado sin confundir revisión con aceptación.
 
 /// Presenta los intentos del cliente o la bandeja de revisión del personal.
 class AssociationRequestsPage extends ConsumerWidget {
   const AssociationRequestsPage({super.key});
+
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(currentUserProfileProvider).asData?.value;
@@ -74,6 +79,8 @@ class AssociationRequestsPage extends ConsumerWidget {
 /// Consulta convenios aceptados conservando acceso a sus documentos originales.
 class AgreementsPage extends ConsumerWidget {
   const AgreementsPage({super.key});
+
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context, WidgetRef ref) => CommerceSection(
     title: 'Convenios',
@@ -109,7 +116,9 @@ class AgreementsPage extends ConsumerWidget {
             if (items.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Todavía no hay convenios aprobados.'),
+                child: Text(
+                  'Todavía no hay convenios ni propuestas registrados.',
+                ),
               ),
             for (final item in items)
               Card(
@@ -118,97 +127,15 @@ class AgreementsPage extends ConsumerWidget {
                   title: Text(
                     'Convenio RIT-${item.number.toString().padLeft(6, '0')}',
                   ),
-                  subtitle: Text(item.request.fullName),
+                  subtitle: Text(
+                    '${item.request.fullName}\n${item.statusLabel}\nVigencia: ${agreementDate(item.expiresAt)}${item.closureReason == null ? '' : '\nMotivo de cierre: ${item.closureReason}'}',
+                  ),
                   trailing: const Icon(Icons.folder_outlined),
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) =>
                           AssociationDetailPage(requestId: item.request.id),
                     ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    ],
-  );
-}
-
-/// Permite al personal iniciar la vinculación comercial y atender a cada cliente.
-class CustomerAccountsPage extends ConsumerWidget {
-  const CustomerAccountsPage({super.key});
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => CommerceSection(
-    title: 'Clientes y asociados',
-    actions: [
-      OutlinedButton(
-        onPressed: () => ref.invalidate(customerAccountsProvider),
-        child: const Text('Actualizar'),
-      ),
-    ],
-    children: [
-      CommerceAsyncPanel(
-        value: ref.watch(customerAccountsProvider),
-        onRetry: () => ref.invalidate(customerAccountsProvider),
-        builder: (items) => Column(
-          children: [
-            if (items.isEmpty) const Text('No hay clientes registrados.'),
-            for (final user in items)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        user.fullName,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      Text(
-                        '${user.email}\n${user.effectiveRole?.label ?? 'Sin rol'}',
-                      ),
-                      Wrap(
-                        spacing: 12,
-                        children: [
-                          OutlinedButton(
-                            onPressed: () async {
-                              try {
-                                final id = await ref
-                                    .read(commerceRepositoryProvider)
-                                    .openConversation(user.id);
-                                if (context.mounted) {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) => SupportChatPage(
-                                        conversationId: id,
-                                        title: user.fullName,
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } catch (error) {
-                                if (context.mounted) {
-                                  showCommerceError(context, error);
-                                }
-                              }
-                            },
-                            child: const Text('Atender por chat'),
-                          ),
-                          FilledButton(
-                            onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => AssociationFormPage(
-                                  customer: user,
-                                  onBehalf: true,
-                                ),
-                              ),
-                            ),
-                            child: const Text('Preparar convenio'),
-                          ),
-                        ],
-                      ),
-                    ],
                   ),
                 ),
               ),
@@ -228,7 +155,9 @@ class SupportInboxPage extends ConsumerStatefulWidget {
   ConsumerState<SupportInboxPage> createState() => _SupportInboxPageState();
 }
 
+/// Sondea conversaciones sin duplicar consultas y abre exclusivamente los chats permitidos.
 class _SupportInboxPageState extends ConsumerState<SupportInboxPage> {
+  /// Filtra conversaciones por canal sin ampliar los permisos que aplica el servidor.
   bool _matches(SupportConversation item, bool staff) =>
       widget.channel == 'exports'
       ? (item.channel == 'exports' || staff && item.channel == 'transport')
@@ -237,21 +166,25 @@ class _SupportInboxPageState extends ConsumerState<SupportInboxPage> {
                 .channel; // La base de datos mantiene además el aislamiento por participante.
   Timer?
   _timer; // Renueva el contador de mensajes mientras la bandeja está visible.
+  /// Prepara las consultas y recursos locales al abrir la pantalla.
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => ref.invalidate(conversationsProvider),
-    );
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!ref.read(conversationsProvider).isLoading) {
+        ref.invalidate(conversationsProvider);
+      } // Una conexión lenta no inicia consultas simultáneas de la misma bandeja.
+    });
   }
 
+  /// Libera los controladores, suscripciones o temporizadores que conserva esta instancia.
   @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
   }
 
+  /// Abre exclusivamente la conversación propia que corresponde al canal y rol actuales.
   Future<void> _openOwn() async {
     final profile = ref.read(currentUserProfileProvider).asData?.value;
     if (profile == null) return;
@@ -280,6 +213,7 @@ class _SupportInboxPageState extends ConsumerState<SupportInboxPage> {
     }
   }
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     final staff =

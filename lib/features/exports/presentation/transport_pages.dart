@@ -15,29 +15,36 @@ class TransportJobsPage extends ConsumerStatefulWidget {
   ConsumerState<TransportJobsPage> createState() => _TransportJobsPageState();
 }
 
+/// Sondea cargas sin superponer consultas y coordina toma, estados y chat del envío.
 class _TransportJobsPageState extends ConsumerState<TransportJobsPage> {
   Timer? _timer; // Detecta cargas tomadas por otros transportadores.
   bool _busy = false; // Impide duplicar una solicitud de toma.
+  /// Prepara las consultas y recursos locales al abrir la pantalla.
   @override
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (!_busy) ref.invalidate(transportJobsProvider);
+      if (!_busy && !ref.read(transportJobsProvider).isLoading) {
+        ref.invalidate(transportJobsProvider);
+      } // Conserva la carga visible y espera la consulta anterior antes de sondear otra vez.
     });
   }
 
+  /// Libera los controladores, suscripciones o temporizadores que conserva esta instancia.
   @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
   }
 
+  /// Renueva los datos de esta sección conservando el estado local de su pantalla.
   void _refresh() {
     ref.invalidate(transportJobsProvider);
     ref.invalidate(coffeeShipmentsProvider);
     ref.invalidate(conversationsProvider);
   }
 
+  /// Solicita una única asignación y comunica si la carga dejó de estar disponible.
   Future<void> _take(CoffeeShipment shipment) async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -63,6 +70,7 @@ class _TransportJobsPageState extends ConsumerState<TransportJobsPage> {
     }
   }
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authRepositoryProvider).currentUserId;
@@ -131,6 +139,7 @@ class _TransportJobsPageState extends ConsumerState<TransportJobsPage> {
     );
   }
 
+  /// Presenta una carga y las acciones permitidas según su asignación y estado.
   Widget _card(
     BuildContext context,
     CoffeeShipment item,
@@ -352,10 +361,12 @@ class TransporterDirectoryPage extends ConsumerStatefulWidget {
       _TransporterDirectoryPageState();
 }
 
+/// Gestiona chats de coordinación y la creación administrativa de las cinco cuentas de prueba.
 class _TransporterDirectoryPageState
     extends ConsumerState<TransporterDirectoryPage> {
   bool _seeding =
       false; // Impide solicitar dos veces la creación de las cuentas de prueba.
+  /// Solicita la preparación idempotente de las cuentas de transporte con una sesión administrativa.
   Future<void> _seed() async {
     if (_seeding) return;
     setState(() => _seeding = true);
@@ -380,6 +391,7 @@ class _TransporterDirectoryPageState
     }
   }
 
+  /// Recupera el chat de coordinación del transportador y conserva errores de acceso o conexión.
   Future<void> _chat(String driver, String name) async {
     try {
       final id = await ref
@@ -400,6 +412,7 @@ class _TransporterDirectoryPageState
     }
   }
 
+  /// Recoge el envío y las instrucciones que el empleado comunicará al transportador.
   Future<void> _pickup(String driver, String name) async {
     List<CoffeeShipment> shipments;
     try {
@@ -518,6 +531,7 @@ class _TransporterDirectoryPageState
     notes.dispose();
   }
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) => CommerceSection(
     title: 'Transportadores',

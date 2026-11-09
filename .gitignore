@@ -37,6 +37,11 @@ migrate_working_dir/
 /supabase/tests/node_modules/
 /supabase/.temp/
 
+# Conserva la configuración local fuera del repositorio y mantiene una plantilla reproducible.
+.env
+.env.*
+!.env.example
+
 # Symbolication related
 app.*.symbols
 

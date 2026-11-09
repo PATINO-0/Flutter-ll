@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; // Construye los controles y estilos Material de la interfaz.
 
+/// Presenta la identidad visual de Ritech en sus variantes completa y compacta.
 class AppBrand extends StatelessWidget {
   const AppBrand({super.key, this.compact = false});
 
   final bool compact;
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

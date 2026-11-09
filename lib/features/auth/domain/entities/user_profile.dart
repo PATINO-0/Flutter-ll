@@ -13,11 +13,14 @@ class UserProfile {
         true, // Mantiene compatibilidad con perfiles anteriores a la revocación de acceso.
   });
 
-  final String id;
-  final String fullName;
-  final String email;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final String
+  id; // Vincula el perfil con su identidad de Auth y sus operaciones.
+  final String
+  fullName; // Presenta el nombre personal en paneles y expedientes.
+  final String email; // Identifica la cuenta sin incluir sus credenciales.
+  final DateTime createdAt; // Conserva el momento del registro.
+  final DateTime
+  updatedAt; // Refleja modificaciones de datos, roles o vigencia comercial.
   final List<UserRole> roles; // Una cuenta puede tener varios roles.
   final bool
   isActive; // Impide mostrar funciones a una cuenta cuyo acceso fue eliminado.

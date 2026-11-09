@@ -25,6 +25,7 @@ class FreightRate {
   isReference; // Señala los valores ilustrativos que no son cotizaciones.
   final bool isActive; // Permite retirar una tarifa de la tienda.
   final bool allowsCoffeeExport; // Habilita esta ruta para solicitudes de café.
+  /// Habilita la selección únicamente para rutas activas de café cotizadas por kilogramo.
   bool get isCoffeeExportAvailable =>
       isActive &&
       allowsCoffeeExport &&
@@ -100,6 +101,10 @@ class AssociationRequest {
     required this.documents,
     this.submittedAt,
     this.rejectionReason,
+    this.agreementId,
+    this.agreementStatus,
+    this.agreementExpiresAt,
+    this.agreementClosureReason,
   });
   final String id; // Relaciona el formulario con sus documentos y mensajes.
   final String ownerId; // Identifica al cliente titular del expediente.
@@ -116,9 +121,19 @@ class AssociationRequest {
   submittedAt; // Permite informar del plazo antes de solicitar un nuevo convenio.
   final String?
   rejectionReason; // Presenta las correcciones solicitadas por el trabajador.
+  final String?
+  agreementId; // Abre las acciones sobre la propuesta o convenio vinculado.
+  final String?
+  agreementStatus; // Distingue revisión documental de aceptación comercial.
+  final DateTime?
+  agreementExpiresAt; // Presenta la vigencia ofrecida al titular.
+  final String?
+  agreementClosureReason; // Conserva el motivo de revocación o rechazo.
+  /// Indica si el expediente conserva permisos de edición antes de ser enviado.
   bool get isDraft =>
       status ==
       'draft'; // Permite editar únicamente solicitudes todavía no enviadas.
+  /// Traduce el estado persistido a una etiqueta comprensible para el usuario.
   String get statusLabel => switch (status) {
     'draft' => 'Borrador',
     'pending' => 'En revisión',
@@ -126,25 +141,35 @@ class AssociationRequest {
     'rejected' => 'Rechazada',
     _ => 'Estado desconocido',
   };
-  factory AssociationRequest.fromMap(Map<String, dynamic> map) =>
-      AssociationRequest(
-        id: map['id'],
-        ownerId: map['owner_id'],
-        status: map['status'],
-        fullName: map['full_name'],
-        identityNumber: map['identity_number'],
-        phone: map['phone'],
-        address: map['address'],
-        businessDescription: map['business_description'],
-        submittedAt: DateTime.tryParse(map['submitted_at'] ?? ''),
-        rejectionReason: map['rejection_reason'],
-        documents: (map['documents'] as List? ?? [])
-            .map(
-              (item) =>
-                  RequestDocument.fromMap(Map<String, dynamic>.from(item)),
-            )
-            .toList(),
-      );
+  factory AssociationRequest.fromMap(Map<String, dynamic> map) {
+    final relation = map['agreement'];
+    final agreement = relation is Map
+        ? relation
+        : relation is List && relation.isNotEmpty
+        ? relation.first as Map
+        : const {};
+    return AssociationRequest(
+      id: map['id'],
+      ownerId: map['owner_id'],
+      status: map['status'],
+      fullName: map['full_name'],
+      identityNumber: map['identity_number'],
+      phone: map['phone'],
+      address: map['address'],
+      businessDescription: map['business_description'],
+      submittedAt: DateTime.tryParse(map['submitted_at'] ?? ''),
+      rejectionReason: map['rejection_reason'],
+      agreementId: agreement['id'],
+      agreementStatus: agreement['status'],
+      agreementExpiresAt: DateTime.tryParse(agreement['expires_at'] ?? ''),
+      agreementClosureReason: agreement['closure_reason'],
+      documents: (map['documents'] as List? ?? [])
+          .map(
+            (item) => RequestDocument.fromMap(Map<String, dynamic>.from(item)),
+          )
+          .toList(),
+    );
+  }
 }
 
 /// Presenta un convenio aprobado junto al expediente original que conserva sus soportes.
@@ -154,12 +179,30 @@ class Agreement {
     required this.number,
     required this.request,
     required this.createdAt,
+    this.status = 'active',
+    this.expiresAt,
+    this.closureReason,
   });
   final String id; // Identifica el convenio persistido.
   final int number; // Presenta un consecutivo comercial legible.
   final AssociationRequest
   request; // Conserva el vínculo con documentos y datos del cliente.
   final DateTime createdAt; // Registra la formalización del convenio.
+  final String status; // Conserva el estado de aceptación o cierre.
+  final DateTime?
+  expiresAt; // Una fecha nula corresponde a un convenio histórico sin vencimiento registrado.
+  final String?
+  closureReason; // Explica la revocación, vencimiento o rechazo de la propuesta.
+  /// Aplica el vencimiento visible aunque todavía no se haya persistido la siguiente sincronización.
+  String get effectiveStatus => effectiveAgreementStatus(status, expiresAt);
+
+  /// Bloquea nuevas propuestas mientras exista una vinculación vigente o pendiente de aceptación.
+  bool get isOpen =>
+      ['active', 'awaiting_acceptance'].contains(effectiveStatus);
+
+  /// Traduce el estado persistido a una etiqueta comprensible para el usuario.
+  String get statusLabel =>
+      agreementStatusLabels[effectiveStatus] ?? effectiveStatus;
   factory Agreement.fromMap(Map<String, dynamic> map) => Agreement(
     id: map['id'],
     number: map['agreement_number'],
@@ -167,8 +210,28 @@ class Agreement {
       Map<String, dynamic>.from(map['request']),
     ),
     createdAt: DateTime.parse(map['created_at']),
+    status: map['status'] ?? 'active',
+    expiresAt: DateTime.tryParse(map['expires_at'] ?? ''),
+    closureReason: map['closure_reason'],
   );
 }
+
+/// Mantiene legibles los estados del convenio en clientes, solicitudes y archivo.
+const agreementStatusLabels = {
+  'awaiting_acceptance': 'Pendiente de aceptación del titular',
+  'active': 'Activo',
+  'revoked': 'Revocado',
+  'expired': 'Vencido',
+  'declined': 'Rechazado por el titular',
+};
+
+/// La fecha visible no depende de que el siguiente sondeo haya persistido el vencimiento.
+String effectiveAgreementStatus(String status, DateTime? expiration) =>
+    ['active', 'awaiting_acceptance'].contains(status) &&
+        expiration != null &&
+        !expiration.isAfter(DateTime.now())
+    ? 'expired'
+    : status;
 
 /// Representa una conversación de atención y sus notificaciones pendientes de lectura.
 class SupportConversation {

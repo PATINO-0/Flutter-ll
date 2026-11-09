@@ -30,6 +30,7 @@ class AccountFormFields extends StatefulWidget {
 class _AccountFormFieldsState extends State<AccountFormFields> {
   bool _obscurePassword = true; // Oculta las contraseñas inicialmente.
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     return Column(

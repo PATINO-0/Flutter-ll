@@ -1,16 +1,16 @@
-import 'dart:async';
+import 'dart:async'; // Gestiona operaciones pendientes y recursos asíncronos con ciclo de vida controlado.
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter/foundation.dart'; // Proporciona las notificaciones que observa el enrutador.
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Comparte consultas, estado y dependencias entre módulos.
+import 'package:go_router/go_router.dart'; // Resuelve navegación y acceso a las rutas de la aplicación.
 
-import '../../features/auth/domain/entities/auth_session_event.dart';
-import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/auth/domain/entities/auth_session_event.dart'; // Reutiliza las entidades o servicios de auth_session_event.
+import '../../features/auth/presentation/pages/login_page.dart'; // Reutiliza las entidades o servicios de login_page.
 import '../../features/auth/presentation/pages/register_page.dart'; // Expone el registro público.
 import '../../features/administration/presentation/pages/administration_page.dart'; // Expone el panel protegido.
-import '../../features/auth/presentation/providers/auth_providers.dart';
-import '../../features/dashboard/presentation/pages/dashboard_page.dart';
-import '../constants/app_routes.dart';
+import '../../features/auth/presentation/providers/auth_providers.dart'; // Reutiliza las entidades o servicios de auth_providers.
+import '../../features/dashboard/presentation/pages/dashboard_page.dart'; // Reutiliza las entidades o servicios de dashboard_page.
+import '../constants/app_routes.dart'; // Reutiliza las entidades o servicios de app_routes.
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authRepository = ref.watch(authRepositoryProvider);
@@ -87,6 +87,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return router;
 });
 
+/// Notifica al enrutador los cambios de autenticación y libera su suscripción al cerrar.
 class AuthRouterRefreshNotifier extends ChangeNotifier {
   AuthRouterRefreshNotifier(Stream<AuthSessionEvent> stream) {
     _subscription = stream.listen(
@@ -101,6 +102,7 @@ class AuthRouterRefreshNotifier extends ChangeNotifier {
 
   late final StreamSubscription<AuthSessionEvent> _subscription;
 
+  /// Libera los controladores, suscripciones o temporizadores que conserva esta instancia.
   @override
   void dispose() {
     unawaited(_subscription.cancel());

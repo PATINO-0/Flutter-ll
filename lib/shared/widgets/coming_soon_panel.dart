@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; // Construye los controles y estilos Material de la interfaz.
 
+/// Conserva un componente de aviso reutilizable para módulos futuros, fuera de los flujos activos del MVP.
 class ComingSoonPanel extends StatelessWidget {
   const ComingSoonPanel({
     required this.title,
@@ -12,6 +13,7 @@ class ComingSoonPanel extends StatelessWidget {
   final String description;
   final IconData icon;
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     return Center(

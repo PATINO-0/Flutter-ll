@@ -1,14 +1,15 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Comparte consultas, estado y dependencias entre módulos.
+import 'package:supabase_flutter/supabase_flutter.dart'; // Accede a Auth, datos y archivos con la sesión autenticada.
 
-import '../../../../core/errors/app_exception.dart';
-import '../../data/datasources/auth_remote_data_source.dart';
-import '../../data/repositories/supabase_auth_repository.dart';
-import '../../data/repositories/supabase_profile_repository.dart';
-import '../../domain/entities/auth_session_event.dart';
-import '../../domain/entities/user_profile.dart';
-import '../../domain/repositories/auth_repository.dart';
-import '../../domain/repositories/profile_repository.dart';
+import '../../../../core/errors/app_exception.dart'; // Reutiliza las entidades o servicios de app_exception.
+import '../../data/datasources/auth_remote_data_source.dart'; // Reutiliza las entidades o servicios de auth_remote_data_source.
+import '../../data/repositories/supabase_auth_repository.dart'; // Reutiliza las entidades o servicios de supabase_auth_repository.
+import '../../data/repositories/supabase_profile_repository.dart'; // Reutiliza las entidades o servicios de supabase_profile_repository.
+import '../../domain/entities/auth_session_event.dart'; // Reutiliza las entidades o servicios de auth_session_event.
+import '../../domain/entities/user_profile.dart'; // Reutiliza las entidades o servicios de user_profile.
+import '../../domain/entities/user_role.dart'; // Distingue cambios reales de permisos durante la comprobación periódica.
+import '../../domain/repositories/auth_repository.dart'; // Reutiliza las entidades o servicios de auth_repository.
+import '../../domain/repositories/profile_repository.dart'; // Reutiliza las entidades o servicios de profile_repository.
 
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
@@ -47,9 +48,26 @@ final currentUserProfileProvider = FutureProvider.autoDispose<UserProfile?>((
   return ref.watch(profileRepositoryProvider).findById(userId);
 });
 
+/// Renueva los módulos únicamente cuando cambia la cuenta, su estado activo o su rol efectivo.
+final currentUserAccessProvider =
+    FutureProvider.autoDispose<
+      ({String? userId, bool isActive, UserRole? role})
+    >((ref) {
+      return ref.watch(
+        currentUserProfileProvider.selectAsync(
+          (profile) => (
+            userId: profile?.id,
+            isActive: profile?.isActive ?? false,
+            role: profile?.effectiveRole,
+          ),
+        ),
+      ); // Otra respuesta del mismo perfil no desmonta listas, desplegables ni formularios.
+    });
+
 final authControllerProvider =
     NotifierProvider<AuthController, AsyncValue<bool>>(AuthController.new);
 
+/// Coordina las acciones de autenticación y el estado de carga sin duplicar solicitudes.
 class AuthController extends Notifier<AsyncValue<bool>> {
   /// Registra una cuenta sin permitir la selección pública de roles.
   Future<String?> signUp({
@@ -90,6 +108,7 @@ class AuthController extends Notifier<AsyncValue<bool>> {
     return AsyncData(hasSession);
   }
 
+  /// Autentica las credenciales y conserva un mensaje recuperable si el servidor las rechaza.
   Future<String?> signIn({
     required String email,
     required String password,
@@ -117,6 +136,7 @@ class AuthController extends Notifier<AsyncValue<bool>> {
     }
   }
 
+  /// Cierra la sesión actual y propaga el resultado a la navegación autenticada.
   Future<String?> signOut() async {
     state = const AsyncLoading();
 

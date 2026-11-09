@@ -8,6 +8,7 @@ import '../domain/coffee_exports_repository.dart'; // Implementa el contrato del
 import '../domain/export_models.dart'; // Convierte los resultados de la API en datos de dominio.
 import '../../commerce/domain/entities/commerce_models.dart'; // Utiliza las mismas tarifas visibles en la tienda.
 
+/// Invoca los servicios protegidos de cultivos, lotes, tarifas, exportaciones y transportadores.
 class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
   const SupabaseCoffeeExportsRepository(this._client);
   final SupabaseClient _client; // No contiene credenciales administrativas.
@@ -58,34 +59,43 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
     }
   }
 
+  /// Consulta cultivos autorizados y los datos del titular necesarios para supervisión.
   @override
   Future<List<CoffeeCultivation>> cultivations() => _run(() async {
-    final rows = await _client
-        .from('coffee_cultivations')
-        .select()
-        .order('name');
-    return rows.map(CoffeeCultivation.fromMap).toList();
+    final rows = await _client.rpc('list_coffee_cultivations');
+    return (rows as List)
+        .map((row) => CoffeeCultivation.fromMap(Map<String, dynamic>.from(row)))
+        .toList();
   });
+
+  /// Consulta lotes con titular, cultivo y reservas de exportación.
   @override
   Future<List<CoffeeExportLot>> lots() => _run(() async {
-    final rows = await _client
-        .from('coffee_lots')
-        .select('*,exports:export_requests(id,status)')
-        .order('name');
-    return rows.map(CoffeeExportLot.fromMap).toList();
+    final rows = await _client.rpc('list_coffee_lots');
+    return (rows as List)
+        .map((row) => CoffeeExportLot.fromMap(Map<String, dynamic>.from(row)))
+        .toList();
   });
+
+  /// Guarda el cultivo solo cuando la sesión pertenece a su asociado titular o a administración.
   @override
   Future<void> saveCultivation(Map<String, dynamic> fields) => _run(() async {
     await _client.rpc('save_coffee_cultivation', params: fields);
   });
+
+  /// Guarda el lote con su cultivo y respeta las reservas de exportación existentes.
   @override
   Future<void> saveLot(Map<String, dynamic> fields) => _run(() async {
     await _client.rpc('save_coffee_export_lot', params: fields);
   });
+
+  /// Retira únicamente un lote editable que no deba conservarse por su historial.
   @override
   Future<void> deleteLot(String id) => _run(() async {
     await _client.rpc('delete_coffee_export_lot', params: {'target_lot': id});
   });
+
+  /// Consulta las solicitudes de exportación y su archivo documental autorizado.
   @override
   Future<List<CoffeeExportRequest>> requests() => _run(() async {
     final rows = await _client
@@ -94,6 +104,8 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
         .order('created_at', ascending: false);
     return rows.map(CoffeeExportRequest.fromMap).toList();
   });
+
+  /// Consulta el expediente de exportación con las relaciones autorizadas para la sesión.
   @override
   Future<CoffeeExportRequest> request(String id) => _run(() async {
     final row = await _client
@@ -103,6 +115,8 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
         .single();
     return CoffeeExportRequest.fromMap(row);
   });
+
+  /// Reserva un lote editable o recupera el borrador para corregir su solicitud.
   @override
   Future<CoffeeExportRequest> start(String lotId) => _run(() async {
     final id = await _client.rpc(
@@ -111,6 +125,8 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
     );
     return request(id as String);
   });
+
+  /// Selecciona exclusivamente tarifas activas por kilogramo habilitadas para café.
   @override
   Future<List<FreightRate>> exportRates() => _run(() async {
     final rows = await _client
@@ -125,6 +141,7 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
         .where((rate) => rate.isCoffeeExportAvailable)
         .toList();
   }); // No ofrece servicios desactivados ni unidades por volumen.
+  /// Obtiene el costo del servidor para el peso del lote y una tarifa habilitada.
   @override
   Future<ExportQuote> quote(String requestId, String rateId) => _run(() async {
     final row = await _client.rpc(
@@ -133,6 +150,8 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
     );
     return ExportQuote.fromMap(Map<String, dynamic>.from(row));
   });
+
+  /// Guarda un soporte nuevo sin sobrescribir el documento histórico del intento anterior.
   @override
   Future<void> attach(
     CoffeeExportRequest request,
@@ -171,6 +190,8 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
       },
     );
   });
+
+  /// Confirma la autorización exacta de ruta, documentos y costo al solicitar una exportación.
   @override
   Future<String> submit(
     CoffeeExportRequest request,
@@ -202,6 +223,8 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
         )
         as String; // El servidor recalcula el costo y rechaza una cotización desactualizada.
   });
+
+  /// Solicita al servidor aceptar o rechazar el envío y conservar su decisión en el expediente.
   @override
   Future<void> review(String id, bool approve, String reason) => _run(() async {
     await _client.rpc(
@@ -213,6 +236,8 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
       },
     );
   });
+
+  /// Solicita un enlace privado de un minuto y lo abre en el visor autorizado del dispositivo.
   @override
   Future<void> openDocument(String path) => _run(() async {
     final url = await _client.storage
@@ -225,6 +250,8 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
       throw const AppException('No fue posible abrir el documento.');
     }
   });
+
+  /// Consulta cargas de café aceptadas para seguimiento o historial de entregas.
   @override
   Future<List<CoffeeShipment>> shipments() => _run(() async {
     final rows = await _client
@@ -239,6 +266,8 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
         .map(CoffeeShipment.fromMap)
         .toList(); // Los asociados solo reciben sus exportaciones de café aprobadas.
   });
+
+  /// Consulta únicamente cargas disponibles o asignadas que puede ver el transportador.
   @override
   Future<List<CoffeeShipment>> transportJobs() => _run(() async {
     final rows = await _client.rpc('list_transport_shipments');
@@ -246,10 +275,14 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
         .map((row) => CoffeeShipment.fromMap(Map<String, dynamic>.from(row)))
         .toList();
   });
+
+  /// Valida la compatibilidad y asignación exclusiva antes de asumir una carga.
   @override
   Future<void> take(String id) => _run(() async {
     await _client.rpc('take_coffee_shipment', params: {'target_shipment': id});
   });
+
+  /// Registra estado, anotación y ubicación y exige confirmación para finalizar la entrega.
   @override
   Future<void> updateDelivery(
     String id,
@@ -269,11 +302,15 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
       },
     );
   });
+
+  /// Recupera el directorio operativo y las cargas activas para el personal autorizado.
   @override
   Future<List<Map<String, dynamic>>> transporters() => _run(() async {
     final rows = await _client.rpc('list_transporters');
     return (rows as List).map((row) => Map<String, dynamic>.from(row)).toList();
   });
+
+  /// Abre el canal de coordinación del transportador con el personal.
   @override
   Future<String> transportConversation(String driverId) => _run(
     () async =>
@@ -283,6 +320,8 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
             )
             as String,
   );
+
+  /// Abre el canal operativo asociado al expediente de exportación.
   @override
   Future<String> exportConversation(String requestId) => _run(
     () async =>
@@ -292,6 +331,8 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
             )
             as String,
   );
+
+  /// Comunica por chat la carga que el trabajador solicita al transportador tomar.
   @override
   Future<String> requestPickup(
     String driverId,
@@ -309,6 +350,8 @@ class SupabaseCoffeeExportsRepository implements CoffeeExportsRepository {
             )
             as String,
   );
+
+  /// Prepara cuentas de prueba sin restablecer contraseñas de usuarios existentes.
   @override
   Future<Map<String, dynamic>> seedTransporters() => _run(() async {
     final response = await _client.functions.invoke('seed-transporters');

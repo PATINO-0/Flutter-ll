@@ -2,10 +2,10 @@ import 'dart:async'; // Limita la espera de las consultas del perfil.
 
 import 'package:supabase_flutter/supabase_flutter.dart'; // Consulta el perfil con los permisos de la sesión actual.
 
-import '../../../../core/errors/app_exception.dart';
-import '../../domain/entities/user_profile.dart';
+import '../../../../core/errors/app_exception.dart'; // Reutiliza las entidades o servicios de app_exception.
+import '../../domain/entities/user_profile.dart'; // Reutiliza las entidades o servicios de user_profile.
 import '../../domain/entities/user_role.dart'; // Define el acceso básico de las cuentas nuevas.
-import '../../domain/repositories/profile_repository.dart';
+import '../../domain/repositories/profile_repository.dart'; // Reutiliza las entidades o servicios de profile_repository.
 
 /// Carga los datos personales sin depender de una relación de tablas todavía no desplegada.
 class SupabaseProfileRepository implements ProfileRepository {
@@ -21,6 +21,7 @@ class SupabaseProfileRepository implements ProfileRepository {
   final Duration
   requestTimeout; // Limita la carga completa del perfil y sus permisos.
 
+  /// Carga el perfil solicitado y sus permisos actuales con un límite de espera.
   @override
   Future<UserProfile?> findById(String userId) async {
     try {
@@ -49,6 +50,17 @@ class SupabaseProfileRepository implements ProfileRepository {
 
   /// Consulta primero el perfil para que la ausencia de roles no descarte los datos personales.
   Future<UserProfile?> _loadProfile(String userId) async {
+    if (_client.auth.currentUser?.id == userId) {
+      try {
+        await _client.rpc(
+          'refresh_my_agreement_status',
+        ); // Persiste un vencimiento y retira asociación antes de consultar los roles propios.
+      } on PostgrestException catch (error) {
+        if (!['PGRST202', '42883'].contains(error.code)) {
+          rethrow; // Mantiene compatibilidad durante el despliegue de la nueva migración.
+        }
+      }
+    }
     final data = await _client
         .from(
           'profiles',

@@ -19,6 +19,7 @@ class ExportRequestFormPage extends ConsumerStatefulWidget {
       _ExportRequestFormPageState();
 }
 
+/// Conserva ruta, direcciones, soportes y consentimiento y exige autorizar cada cotización nueva.
 class _ExportRequestFormPageState extends ConsumerState<ExportRequestFormPage> {
   final _form =
       GlobalKey<
@@ -48,12 +49,14 @@ class _ExportRequestFormPageState extends ConsumerState<ExportRequestFormPage> {
   bool _charge = false; // La autorización económica siempre empieza desmarcada.
   bool _data =
       false; // La autorización para gestionar los documentos es explícita.
+  /// Prepara las consultas y recursos locales al abrir la pantalla.
   @override
   void initState() {
     super.initState();
     _load();
   }
 
+  /// Libera los controladores, suscripciones o temporizadores que conserva esta instancia.
   @override
   void dispose() {
     for (final controller in [_origin, _destination, _recipient, _phone]) {
@@ -62,6 +65,7 @@ class _ExportRequestFormPageState extends ConsumerState<ExportRequestFormPage> {
     super.dispose();
   }
 
+  /// Recupera los datos autorizados y conserva los errores necesarios para reintentar.
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -107,6 +111,7 @@ class _ExportRequestFormPageState extends ConsumerState<ExportRequestFormPage> {
     }
   }
 
+  /// Actualiza rutas y costo y retira toda autorización económica de una cotización anterior.
   Future<void> _refreshQuote() async {
     if (_busy || _request == null) return;
     setState(() {
@@ -153,6 +158,7 @@ class _ExportRequestFormPageState extends ConsumerState<ExportRequestFormPage> {
     }
   }
 
+  /// Elimina destino, direcciones y autorización que pertenezcan a otro origen.
   void _selectOrigin(String? value) {
     setState(() {
       _routeOrigin = value;
@@ -165,6 +171,7 @@ class _ExportRequestFormPageState extends ConsumerState<ExportRequestFormPage> {
     }); // No conserva un destino ni una autorización de otra ruta.
   }
 
+  /// Selecciona una conexión habilitada y obtiene su costo vigente en el servidor.
   Future<void> _selectDestination(String? value) async {
     if (value == null) return;
     setState(() {
@@ -179,6 +186,7 @@ class _ExportRequestFormPageState extends ConsumerState<ExportRequestFormPage> {
     await _refreshQuote();
   }
 
+  /// Selecciona y valida un soporte y actualiza sus referencias únicamente después de guardarlo.
   Future<void> _upload(ExportDocumentKind kind) async {
     if (_busy || _request == null) return;
     setState(() => _busy = true);
@@ -204,6 +212,7 @@ class _ExportRequestFormPageState extends ConsumerState<ExportRequestFormPage> {
     }
   }
 
+  /// Valida campos y consentimientos antes de enviar una única operación al servidor.
   Future<void> _submit() async {
     if (_busy ||
         _request == null ||
@@ -261,10 +270,13 @@ class _ExportRequestFormPageState extends ConsumerState<ExportRequestFormPage> {
     }
   }
 
+  /// Verifica la longitud mínima de la información requerida antes de enviarla.
   String? _text(String? value, int minimum) =>
       (value?.trim().length ?? 0) < minimum
       ? 'Completa este campo con al menos $minimum caracteres.'
       : null;
+
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,

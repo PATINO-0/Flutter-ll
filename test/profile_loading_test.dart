@@ -44,6 +44,17 @@ SupabaseClient createLegacyClient({
       false, // Simula la petición que mantendría la pantalla cargando.
 }) {
   final httpClient = MockClient((request) async {
+    if (request.url.path.endsWith('/refresh_my_agreement_status')) {
+      return http.Response(
+        jsonEncode({
+          'code': 'PGRST202',
+          'message': 'Could not find the function in the schema cache',
+        }),
+        404,
+        request: request,
+        headers: {'content-type': 'application/json'},
+      ); // Reproduce la migración todavía pendiente sin convertir otros fallos en permisos válidos.
+    }
     if (request.url.path.endsWith('/profiles') &&
         !request.url.query.contains('user_roles')) {
       if (profileNeverResponds) {

@@ -152,6 +152,8 @@ class FakeUserManagementRepository implements UserManagementRepository {
 
 /// Proporciona datos controlados para recorrer catálogo, solicitud y chat sin Supabase.
 class FakeCommerceRepository implements CommerceRepository {
+  final List<UserProfile> customers =
+      []; // Permite verificar el estado de convenios por titular.
   final List<FreightRate> rates =
       []; // Mantiene tarifas ilustrativas configurables por cada prueba.
   final List<SupportConversation> conversations =
@@ -171,7 +173,7 @@ class FakeCommerceRepository implements CommerceRepository {
   @override
   Future<void> saveRate(Map<String, dynamic> data) async {}
   @override
-  Future<List<UserProfile>> listCustomers() async => [];
+  Future<List<UserProfile>> listCustomers() async => customers;
   @override
   Future<List<AssociationRequest>> listRequests() async => requests;
   @override
@@ -196,6 +198,7 @@ class FakeCommerceRepository implements CommerceRepository {
     required String address,
     required String business,
     required bool consent,
+    DateTime? validUntil,
   }) async {
     submittedCount++;
     submittedConsent = consent;
@@ -207,6 +210,7 @@ class FakeCommerceRepository implements CommerceRepository {
     String id, {
     required bool approve,
     String reason = '',
+    DateTime? validUntil,
   }) async {
     reviewedApproval = approve;
     reviewedReason = reason;
@@ -214,6 +218,29 @@ class FakeCommerceRepository implements CommerceRepository {
 
   @override
   Future<List<Agreement>> listAgreements() async => agreements;
+  @override
+  Future<void> respondToAgreement(
+    String id, {
+    required bool accept,
+    required bool acceptedTerms,
+    String reason = '',
+  }) async {
+    respondedAgreementId = id;
+    agreementAccepted = accept;
+    agreementTermsAccepted = acceptedTerms;
+  } // Conserva la respuesta del titular sin cambiar cuentas reales.
+
+  String? respondedAgreementId;
+  bool? agreementAccepted;
+  bool? agreementTermsAccepted;
+  @override
+  Future<void> revokeAgreement(String id, String reason) async {
+    revokedAgreementId = id;
+    agreementRevocationReason = reason;
+  } // Comprueba que la interfaz exige y transmite el motivo.
+
+  String? revokedAgreementId;
+  String? agreementRevocationReason;
   @override
   Future<void> openDocument(String path) async {}
   @override

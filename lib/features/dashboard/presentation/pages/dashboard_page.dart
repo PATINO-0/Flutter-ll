@@ -32,6 +32,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   Timer?
   _refreshTimer; // Mantiene visibles respuestas nuevas y promociones a asociado.
 
+  /// Prepara las consultas y recursos locales al abrir la pantalla.
   @override
   void initState() {
     super.initState(); // Inicializa el estado visual del panel.
@@ -40,12 +41,24 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     ); // Detecta cuándo el usuario vuelve a la aplicación.
     _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
-        ref.invalidate(currentUserProfileProvider);
-        ref.invalidate(conversationsProvider);
+        if (!ref.read(currentUserProfileProvider).isLoading) {
+          ref.invalidate(currentUserProfileProvider);
+        } // Espera una consulta pendiente en lugar de reiniciarla cada quince segundos.
+        if (ref
+                    .read(currentUserProfileProvider)
+                    .asData
+                    ?.value
+                    ?.roles
+                    .isNotEmpty ==
+                true &&
+            !ref.read(conversationsProvider).isLoading) {
+          ref.invalidate(conversationsProvider);
+        }
       }
     }); // La validación de permisos permanece siempre en el servidor.
   }
 
+  /// Libera los controladores, suscripciones o temporizadores que conserva esta instancia.
   @override
   void dispose() {
     _refreshTimer?.cancel(); // No mantiene consultas cuando el panel se cierra.
@@ -55,12 +68,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     super.dispose(); // Completa la liberación del estado.
   }
 
+  /// Vuelve a comprobar permisos al regresar al primer plano sin interrumpir una consulta pendiente.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      ref.invalidate(
-        currentUserProfileProvider,
-      ); // Actualiza los roles al volver a la aplicación.
+      if (!ref.read(currentUserProfileProvider).isLoading) {
+        ref.invalidate(currentUserProfileProvider);
+      } // Actualiza al volver sin interrumpir una comprobación que ya estaba en curso.
     }
   }
 
@@ -221,6 +235,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     ); // Conserva un panel válido cuando cambia la selección por una modificación de roles.
   }
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(

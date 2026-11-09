@@ -8,18 +8,21 @@ final coffeeExportsRepositoryProvider = Provider<CoffeeExportsRepository>(
   (ref) => SupabaseCoffeeExportsRepository(ref.watch(supabaseClientProvider)),
 );
 final coffeeCultivationsProvider =
-    FutureProvider.autoDispose<List<CoffeeCultivation>>((ref) {
-      ref.watch(currentUserProfileProvider);
+    FutureProvider.autoDispose<List<CoffeeCultivation>>((ref) async {
+      await ref.watch(currentUserAccessProvider.future);
+      if (!ref.mounted) return const [];
       return ref.watch(coffeeExportsRepositoryProvider).cultivations();
     }); // Consulta cultivos propios o todos para el personal.
 final coffeeExportLotsProvider =
-    FutureProvider.autoDispose<List<CoffeeExportLot>>((ref) {
-      ref.watch(currentUserProfileProvider);
+    FutureProvider.autoDispose<List<CoffeeExportLot>>((ref) async {
+      await ref.watch(currentUserAccessProvider.future);
+      if (!ref.mounted) return const [];
       return ref.watch(coffeeExportsRepositoryProvider).lots();
     }); // Incluye la reserva de cada lote.
 final coffeeExportRequestsProvider =
-    FutureProvider.autoDispose<List<CoffeeExportRequest>>((ref) {
-      ref.watch(currentUserProfileProvider);
+    FutureProvider.autoDispose<List<CoffeeExportRequest>>((ref) async {
+      await ref.watch(currentUserAccessProvider.future);
+      if (!ref.mounted) return const [];
       return ref.watch(coffeeExportsRepositoryProvider).requests();
     });
 final coffeeExportRequestProvider = FutureProvider.autoDispose
@@ -27,18 +30,21 @@ final coffeeExportRequestProvider = FutureProvider.autoDispose
       (ref, id) => ref.watch(coffeeExportsRepositoryProvider).request(id),
     );
 final coffeeShipmentsProvider =
-    FutureProvider.autoDispose<List<CoffeeShipment>>((ref) {
-      ref.watch(currentUserProfileProvider);
+    FutureProvider.autoDispose<List<CoffeeShipment>>((ref) async {
+      await ref.watch(currentUserAccessProvider.future);
+      if (!ref.mounted) return const [];
       return ref.watch(coffeeExportsRepositoryProvider).shipments();
     });
 final transportJobsProvider = FutureProvider.autoDispose<List<CoffeeShipment>>((
   ref,
-) {
-  ref.watch(currentUserProfileProvider);
+) async {
+  await ref.watch(currentUserAccessProvider.future);
+  if (!ref.mounted) return const [];
   return ref.watch(coffeeExportsRepositoryProvider).transportJobs();
 });
 final transportersProvider =
-    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
-      ref.watch(currentUserProfileProvider);
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+      await ref.watch(currentUserAccessProvider.future);
+      if (!ref.mounted) return const [];
       return ref.watch(coffeeExportsRepositoryProvider).transporters();
     });

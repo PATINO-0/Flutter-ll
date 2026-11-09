@@ -9,6 +9,8 @@ import 'association_form_page.dart'; // Inicia el formulario de solicitud del cl
 /// Presenta tarifas, requisitos y el acceso a la solicitud de vinculación.
 class StorePage extends ConsumerWidget {
   const StorePage({super.key});
+
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(currentUserProfileProvider).asData?.value;

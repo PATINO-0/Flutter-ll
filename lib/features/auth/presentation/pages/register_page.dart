@@ -29,6 +29,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       TextEditingController(); // Conserva temporalmente su confirmación.
   bool _registered = false; // Indica que falta confirmar el correo.
 
+  /// Libera los controladores, suscripciones o temporizadores que conserva esta instancia.
   @override
   void dispose() {
     _nameController.dispose(); // Libera el controlador del nombre.
@@ -75,6 +76,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     }
   }
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     final loading = ref

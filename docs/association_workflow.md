@@ -9,7 +9,7 @@ Predomina el mayor nivel: **Administrador > Trabajador > Transportador > Asociad
 | Cliente | Tienda de servicios, requisitos de vinculación, sus solicitudes y chat de atención. |
 | Asociado | Tienda de tarifas y destinos; sus cultivos, lotes, convenios, envíos, exportaciones, seguimiento y chat. No consulta operaciones de otros asociados. |
 | Transportador | Cargas disponibles, sus asignaciones, actualización de entregas y chat de transporte. |
-| Trabajador | Clientes y asociados, solicitudes, convenios y sus documentos, operaciones, seguimiento, café y conversaciones de atención. |
+| Trabajador | Clientes y asociados, solicitudes, convenios y sus documentos, revisión de exportaciones y atención. En Café consulta cultivos, lotes y titulares sin crearlos, editarlos ni eliminarlos. |
 | Administrador | Todos los módulos anteriores, precios de la tienda y administración de usuarios. |
 
 Los clientes no registran importaciones ni consultan envíos antes de ser asociados. El control se aplica también en funciones y políticas de PostgreSQL, independientemente del menú de Flutter.
@@ -32,7 +32,11 @@ Solo puede haber un borrador o solicitud pendiente por titular. Un borrador no c
 
 El envío crea o recupera el chat del cliente y publica una notificación de sistema. Cada trabajador o administrador dispone de su propio contador de mensajes sin leer. El cliente solo consulta su conversación.
 
-La aprobación crea un convenio con consecutivo `RIT-000001`, conserva el expediente con sus documentos y añade el rol de asociado en una única transacción. El rechazo requiere un motivo de entre 5 y 2000 caracteres y lo entrega al cliente en el mismo chat. Una solicitud no puede resolverse dos veces.
+La revisión favorable crea una propuesta con consecutivo `RIT-000001` y vigencia inicial de un año, editable por el personal hasta diez años. Conserva el expediente y avisa al titular por chat. El cliente debe abrirlo y aceptar expresamente sus documentos, vigencia y tratamiento de datos; solo entonces se registra su aceptación y se añade el rol de asociado. La revisión del empleado no sustituye este consentimiento. Un rechazo requiere un motivo de entre 5 y 2000 caracteres y permite corregir inmediatamente. Una decisión no puede aplicarse dos veces.
+
+Desde Clientes, el personal prepara el expediente y su envío completo genera directamente la propuesta para el titular. Solo puede existir un convenio activo o pendiente de aceptación por usuario. La interfaz oculta otra preparación y SQL valida la exclusión incluso ante llamadas simultáneas.
+
+El trabajador o administrador puede revocar un convenio desde Clientes o su expediente, siempre con motivo comunicado al titular por chat. Se conserva el historial y se retira únicamente el rol asociado cuando no queda un convenio activo. El vencimiento se comprueba con hora del servidor y se sincroniza al consultar el perfil o comenzar otra vinculación. Rechazo del titular, revocación o vencimiento permiten renovar sin esperar treinta días. Los convenios anteriores conservan su vigencia sin inventar una aceptación; los duplicados históricos se regularizan preservando sus documentos.
 
 El chat y la bandeja se actualizan cada cinco segundos mientras están abiertos. El dashboard actualiza roles y notificaciones cada quince segundos cuando la aplicación está activa. Las notificaciones de esta entrega son internas; no se envían notificaciones push al dispositivo en segundo plano. El historial permite cargar mensajes anteriores en bloques de cien.
 
@@ -52,7 +56,7 @@ Las solicitudes se realizan desde Exportaciones y actualmente corresponden solo 
 
 ## Despliegue
 
-Desde la raíz del repositorio, aplica las siete migraciones en orden y despliega las tres funciones. El CLI registra las migraciones ya aplicadas y solo ejecuta las pendientes:
+Desde la raíz del repositorio, aplica las nueve migraciones en orden y despliega las tres funciones. El CLI registra las migraciones ya aplicadas y solo ejecuta las pendientes:
 
 ```powershell
 npx supabase@3.0.0 login

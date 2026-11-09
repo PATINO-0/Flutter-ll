@@ -13,6 +13,7 @@ class SupabaseUserManagementRepository implements UserManagementRepository {
   _client; // Utiliza la sesión actual, nunca una clave administrativa.
   static const pageSize = 20; // Limita los perfiles cargados en cada consulta.
 
+  /// Actualiza identidad y roles mediante el servicio administrativo sin cambiar la sesión solicitante.
   @override
   Future<void> updateUser({
     required String userId,
@@ -27,10 +28,12 @@ class SupabaseUserManagementRepository implements UserManagementRepository {
     'roles': roles.map((role) => role.value).toList(),
   }); // Mantiene sincronizados Supabase Auth y el perfil.
 
+  /// Retira el acceso y conserva los documentos e historial de la cuenta.
   @override
   Future<void> deactivateUser(String userId) =>
       _manageUser({'action': 'deactivate', 'userId': userId}); // Revoca el acceso mediante una función exclusivamente administrativa.
 
+  /// Envía una operación administrativa y distingue rechazos del servidor de fallos de transporte.
   Future<void> _manageUser(Map<String, dynamic> body) async {
     try {
       await _client.functions.invoke('manage-user', body: body);
@@ -72,6 +75,7 @@ class SupabaseUserManagementRepository implements UserManagementRepository {
     }
   }
 
+  /// Sustituye la selección de roles preservando las restricciones administrativas del servidor.
   @override
   Future<void> updateRoles({
     required String userId,
@@ -98,6 +102,7 @@ class SupabaseUserManagementRepository implements UserManagementRepository {
     }
   }
 
+  /// Solicita la creación de una cuenta y sus roles sin sustituir la sesión del administrador.
   @override
   Future<void> createUser({
     required String fullName,

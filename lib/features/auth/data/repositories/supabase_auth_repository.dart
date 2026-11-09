@@ -1,10 +1,11 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Accede a Auth, datos y archivos con la sesión autenticada.
 
-import '../../../../core/errors/app_exception.dart';
-import '../../domain/entities/auth_session_event.dart';
-import '../../domain/repositories/auth_repository.dart';
-import '../datasources/auth_remote_data_source.dart';
+import '../../../../core/errors/app_exception.dart'; // Reutiliza las entidades o servicios de app_exception.
+import '../../domain/entities/auth_session_event.dart'; // Reutiliza las entidades o servicios de auth_session_event.
+import '../../domain/repositories/auth_repository.dart'; // Reutiliza las entidades o servicios de auth_repository.
+import '../datasources/auth_remote_data_source.dart'; // Reutiliza las entidades o servicios de auth_remote_data_source.
 
+/// Traduce los resultados de Auth a contratos de dominio y errores de usuario en español.
 class SupabaseAuthRepository implements AuthRepository {
   const SupabaseAuthRepository(this._dataSource);
 
@@ -57,6 +58,7 @@ class SupabaseAuthRepository implements AuthRepository {
     }
   }
 
+  /// Autentica las credenciales y conserva un mensaje recuperable si el servidor las rechaza.
   @override
   Future<void> signIn({required String email, required String password}) async {
     try {
@@ -66,6 +68,7 @@ class SupabaseAuthRepository implements AuthRepository {
     }
   }
 
+  /// Cierra la sesión actual y propaga el resultado a la navegación autenticada.
   @override
   Future<void> signOut() async {
     try {
@@ -77,16 +80,19 @@ class SupabaseAuthRepository implements AuthRepository {
     }
   }
 
+  /// Obtiene el identificador de la cuenta autenticada sin confiar en datos del formulario.
   @override
   String? get currentUserId {
     return _dataSource.currentUserId;
   }
 
+  /// Obtiene el correo que Supabase Auth verificó para la sesión actual.
   @override
   String? get currentUserEmail {
     return _dataSource.currentUserEmail;
   }
 
+  /// Indica si existe una sesión que la navegación pueda utilizar.
   @override
   bool get hasSession {
     return _dataSource.hasSession;
@@ -102,6 +108,7 @@ class SupabaseAuthRepository implements AuthRepository {
     });
   }
 
+  /// Traduce rechazos de Auth y fallos de conexión a mensajes comprensibles en español.
   String _mapSignInError(Object error) {
     if (error is AuthException) {
       final message = error.message.toLowerCase();

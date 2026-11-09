@@ -15,6 +15,7 @@ class CommerceAsyncPanel<T> extends StatelessWidget {
   onRetry; // Permite recuperar la consulta sin cerrar la pantalla.
   final Widget Function(T data)
   builder; // Construye únicamente contenido disponible.
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) => value.when(
     loading: () => const Center(
@@ -57,6 +58,7 @@ class CommerceSection extends StatelessWidget {
   final List<Widget> children; // Contiene tarjetas y formularios del módulo.
   final List<Widget>
   actions; // Presenta las operaciones disponibles para el rol actual.
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
     padding: const EdgeInsets.all(20),

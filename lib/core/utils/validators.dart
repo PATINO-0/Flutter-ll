@@ -1,8 +1,10 @@
+/// Valida correo, nombres y contraseñas antes de enviar formularios al servidor.
 class Validators {
   Validators._();
 
   static final RegExp _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
+  /// Comprueba que el correo tenga contenido y una estructura válida antes del envío.
   static String? email(String? value) {
     final email = value?.trim() ?? '';
 
@@ -17,6 +19,7 @@ class Validators {
     return null;
   }
 
+  /// Comprueba que el campo de contraseña tenga contenido sin modificar sus caracteres.
   static String? password(String? value) {
     if (value == null || value.isEmpty) {
       return 'Ingresa tu contraseña.';

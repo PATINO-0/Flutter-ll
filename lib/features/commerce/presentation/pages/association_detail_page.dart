@@ -4,7 +4,9 @@ import '../../../auth/presentation/providers/auth_providers.dart'; // Comprueba 
 import '../../domain/entities/commerce_models.dart'; // Describe el expediente y sus documentos privados.
 import '../providers/commerce_providers.dart'; // Consulta y modifica el flujo mediante el repositorio.
 import '../widgets/commerce_widgets.dart'; // Comparte estados y errores del módulo.
+import '../widgets/agreement_actions.dart'; // Recoge vigencia, aceptación del titular y revocación con motivo.
 
+/// Presenta documentos, revisión, aceptación del titular y cierre del convenio.
 class AssociationDetailPage extends ConsumerStatefulWidget {
   const AssociationDetailPage({required this.requestId, super.key});
   final String
@@ -14,9 +16,11 @@ class AssociationDetailPage extends ConsumerStatefulWidget {
       _AssociationDetailPageState();
 }
 
+/// Coordina revisión y vigencia sin permitir decisiones simultáneas sobre el expediente.
 class _AssociationDetailPageState extends ConsumerState<AssociationDetailPage> {
   bool _busy = false; // Impide decisiones simultáneas desde la misma pantalla.
 
+  /// Confirma la decisión del personal y exige explicar las correcciones cuando se rechaza.
   Future<void> _review(bool approve) async {
     final reason =
         TextEditingController(); // Conserva el motivo del rechazo únicamente durante la confirmación.
@@ -24,13 +28,35 @@ class _AssociationDetailPageState extends ConsumerState<AssociationDetailPage> {
         GlobalKey<
           FormState
         >(); // Verifica que el rechazo explique las correcciones necesarias.
+    var validUntil = defaultAgreementExpiration();
     final confirmed = await showCommerceDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(approve ? 'Aprobar convenio' : 'Rechazar solicitud'),
         content: approve
-            ? const Text(
-                'Se creará el convenio con los documentos enviados y el cliente pasará a ser asociado.',
+            ? StatefulBuilder(
+                builder: (context, update) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Se enviará una propuesta al titular. Su cuenta pasará a asociado únicamente cuando la acepte.',
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final date = await chooseAgreementExpiration(
+                          context,
+                          validUntil,
+                        );
+                        if (date != null && context.mounted) {
+                          update(() => validUntil = date);
+                        }
+                      },
+                      child: Text(
+                        'Vigencia hasta ${agreementDate(validUntil)}',
+                      ),
+                    ),
+                  ],
+                ),
               )
             : Form(
                 key: form,
@@ -74,6 +100,7 @@ class _AssociationDetailPageState extends ConsumerState<AssociationDetailPage> {
             widget.requestId,
             approve: approve,
             reason: explanation,
+            validUntil: approve ? validUntil : null,
           );
       if (!mounted) return;
       ref.invalidate(associationRequestProvider(widget.requestId));
@@ -88,7 +115,7 @@ class _AssociationDetailPageState extends ConsumerState<AssociationDetailPage> {
         SnackBar(
           content: Text(
             approve
-                ? 'Convenio aprobado y asociado habilitado.'
+                ? 'Propuesta enviada. Falta la aceptación del titular.'
                 : 'Rechazo enviado al cliente por el chat.',
           ),
         ),
@@ -100,6 +127,7 @@ class _AssociationDetailPageState extends ConsumerState<AssociationDetailPage> {
     }
   }
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     final request = ref.watch(associationRequestProvider(widget.requestId));
@@ -120,6 +148,20 @@ class _AssociationDetailPageState extends ConsumerState<AssociationDetailPage> {
           title: item.fullName,
           children: [
             Chip(label: Text(item.statusLabel)),
+            if (item.agreementStatus != null) ...[
+              Chip(
+                label: Text(
+                  agreementStatusLabels[effectiveAgreementStatus(
+                        item.agreementStatus!,
+                        item.agreementExpiresAt,
+                      )] ??
+                      item.agreementStatus!,
+                ),
+              ),
+              Text('Vigencia hasta: ${agreementDate(item.agreementExpiresAt)}'),
+              if (item.agreementClosureReason != null)
+                Text('Motivo de cierre: ${item.agreementClosureReason}'),
+            ],
             Text(
               'Identificación: ${item.identityNumber}\nContacto: ${item.phone}\nDirección: ${item.address}\nActividad: ${item.businessDescription}',
             ),
@@ -163,6 +205,56 @@ class _AssociationDetailPageState extends ConsumerState<AssociationDetailPage> {
                     child: const Text('Rechazar con correcciones'),
                   ),
                 ],
+              ),
+            if (item.agreementId != null &&
+                effectiveAgreementStatus(
+                      item.agreementStatus ?? '',
+                      item.agreementExpiresAt,
+                    ) ==
+                    'awaiting_acceptance' &&
+                item.ownerId == ref.read(authRepositoryProvider).currentUserId)
+              Wrap(
+                spacing: 12,
+                children: [
+                  FilledButton(
+                    onPressed: () => showAgreementAction(
+                      context,
+                      ref,
+                      agreementId: item.agreementId!,
+                      requestId: item.id,
+                      action: 'accept',
+                    ),
+                    child: const Text('Aceptar mi convenio'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () => showAgreementAction(
+                      context,
+                      ref,
+                      agreementId: item.agreementId!,
+                      requestId: item.id,
+                      action: 'decline',
+                    ),
+                    child: const Text('Rechazar propuesta'),
+                  ),
+                ],
+              ),
+            if (staff &&
+                item.agreementId != null &&
+                ['active', 'awaiting_acceptance'].contains(
+                  effectiveAgreementStatus(
+                    item.agreementStatus ?? '',
+                    item.agreementExpiresAt,
+                  ),
+                ))
+              OutlinedButton(
+                onPressed: () => showAgreementAction(
+                  context,
+                  ref,
+                  agreementId: item.agreementId!,
+                  requestId: item.id,
+                  action: 'revoke',
+                ),
+                child: const Text('Revocar convenio con motivo'),
               ),
           ],
         ),

@@ -101,6 +101,7 @@ class _AdministrationPageState extends ConsumerState<AdministrationPage> {
     }
   }
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(

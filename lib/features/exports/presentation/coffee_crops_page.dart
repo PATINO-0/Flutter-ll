@@ -9,8 +9,15 @@ import 'export_providers.dart'; // Consulta y modifica el inventario mediante fu
 /// El asociado consulta sus registros; el personal consulta el inventario de todos los titulares.
 class CoffeeCropsPage extends ConsumerWidget {
   const CoffeeCropsPage({super.key});
+
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(currentUserProfileProvider).asData?.value;
+    final canEdit =
+        profile?.isAdmin == true ||
+        profile?.effectiveRole?.value ==
+            'associate'; // El trabajador tiene acceso únicamente de consulta.
     final staff =
         ref
             .watch(currentUserProfileProvider)
@@ -23,16 +30,18 @@ class CoffeeCropsPage extends ConsumerWidget {
           ? 'Cultivos y lotes de café'
           : 'Mis cultivos y lotes de café',
       actions: [
-        FilledButton.icon(
-          onPressed: () => _cultivation(context, ref),
-          icon: const Icon(Icons.add),
-          label: const Text('Registrar cultivo'),
-        ),
-        OutlinedButton.icon(
-          onPressed: () => _lot(context, ref),
-          icon: const Icon(Icons.inventory_2_outlined),
-          label: const Text('Registrar lote'),
-        ),
+        if (canEdit)
+          FilledButton.icon(
+            onPressed: () => _cultivation(context, ref),
+            icon: const Icon(Icons.add),
+            label: const Text('Registrar cultivo'),
+          ),
+        if (canEdit)
+          OutlinedButton.icon(
+            onPressed: () => _lot(context, ref),
+            icon: const Icon(Icons.inventory_2_outlined),
+            label: const Text('Registrar lote'),
+          ),
         OutlinedButton(
           onPressed: () {
             ref.invalidate(coffeeCultivationsProvider);
@@ -42,6 +51,10 @@ class CoffeeCropsPage extends ConsumerWidget {
         ),
       ],
       children: [
+        if (!canEdit)
+          const Text(
+            'Supervisión de café: consulta los cultivos, lotes y sus titulares. La creación y modificación corresponden al asociado y a administración.',
+          ),
         const Text(
           'Cada lote pertenece a un cultivo y solo puede tener una exportación aprobada. Crea las solicitudes de envío desde Exportaciones.',
         ),
@@ -54,20 +67,22 @@ class CoffeeCropsPage extends ConsumerWidget {
             children: [
               if (items.isEmpty)
                 const Text(
-                  'Registra primero el cultivo, su finca, ubicación y variedad.',
+                  'Todavía no hay cultivos registrados. Cada asociado registra su finca, ubicación y variedad.',
                 ),
               for (final crop in items)
                 Card(
                   child: ListTile(
                     title: Text(crop.name),
                     subtitle: Text(
-                      '${crop.farm} · ${crop.variety} · ${crop.hectares} ha\n${crop.location}',
+                      '${crop.farm} · ${crop.variety} · ${crop.hectares} ha\n${crop.location}${staff ? '\nTitular: ${crop.ownerName.isEmpty ? crop.ownerId : crop.ownerName}\n${crop.ownerEmail}' : ''}',
                     ),
-                    trailing: IconButton(
-                      tooltip: 'Editar cultivo',
-                      icon: const Icon(Icons.edit_outlined),
-                      onPressed: () => _cultivation(context, ref, crop),
-                    ),
+                    trailing: canEdit
+                        ? IconButton(
+                            tooltip: 'Editar cultivo',
+                            icon: const Icon(Icons.edit_outlined),
+                            onPressed: () => _cultivation(context, ref, crop),
+                          )
+                        : null,
                   ),
                 ),
             ],
@@ -96,6 +111,10 @@ class CoffeeCropsPage extends ConsumerWidget {
                         Text(
                           '${lot.weight} kg · Cosecha: ${lot.harvestDate ?? 'Pendiente de asignar'}\n${lot.origin}\n${lot.notes}',
                         ),
+                        if (staff)
+                          Text(
+                            'Titular: ${lot.ownerName.isEmpty ? lot.ownerId ?? 'Sin asignar' : lot.ownerName}\n${lot.ownerEmail}\nCultivo: ${lot.cultivationName}',
+                          ),
                         Text(switch (lot.reservationStatus) {
                           'approved' =>
                             'Exportación aprobada: este lote no puede volver a solicitarse.',
@@ -107,7 +126,7 @@ class CoffeeCropsPage extends ConsumerWidget {
                                 ? 'Disponible para solicitar desde Exportaciones.'
                                 : 'Asigna cultivo, propietario y código antes de exportar.',
                         }),
-                        if (lot.reservationStatus == null)
+                        if (canEdit && lot.reservationStatus == null)
                           Wrap(
                             children: [
                               TextButton(
@@ -131,6 +150,7 @@ class CoffeeCropsPage extends ConsumerWidget {
     );
   }
 
+  /// Rechaza pesos o áreas vacíos, negativos, infinitos o fuera del rango admitido.
   String? _number(String? value, {double maximum = 10000000000}) {
     final number = double.tryParse((value ?? '').replaceAll(',', '.'));
     return number == null ||
@@ -141,11 +161,13 @@ class CoffeeCropsPage extends ConsumerWidget {
         : null;
   } // Valida pesos y áreas sin aceptar valores especiales.
 
+  /// Verifica la longitud mínima de la información requerida antes de enviarla.
   String? _text(String? value, int minimum) =>
       ((value?.trim().length ?? 0) < minimum)
       ? 'Completa este campo con al menos $minimum caracteres.'
       : null;
 
+  /// Recoge los datos del cultivo respetando quién puede registrar o modificar al titular.
   Future<void> _cultivation(
     BuildContext context,
     WidgetRef ref, [
@@ -290,6 +312,7 @@ class CoffeeCropsPage extends ConsumerWidget {
     } // Libera los campos después de cerrar la animación del diálogo.
   }
 
+  /// Recoge código, cultivo, cosecha y peso y conserva las restricciones de reserva del lote.
   Future<void> _lot(
     BuildContext context,
     WidgetRef ref, [
@@ -468,6 +491,7 @@ class CoffeeCropsPage extends ConsumerWidget {
     }
   }
 
+  /// Confirma el retiro de un lote y conserva cualquier expediente histórico protegido.
   Future<void> _delete(
     BuildContext context,
     WidgetRef ref,

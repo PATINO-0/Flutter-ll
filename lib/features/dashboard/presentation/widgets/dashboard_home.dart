@@ -8,6 +8,7 @@ class DashboardHome extends StatelessWidget {
 
   final UserProfile profile; // Recibe el perfil cargado desde el servidor.
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(

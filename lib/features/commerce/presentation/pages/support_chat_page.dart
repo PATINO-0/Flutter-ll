@@ -23,6 +23,7 @@ class SupportChatPage extends ConsumerStatefulWidget {
   ConsumerState<SupportChatPage> createState() => _SupportChatPageState();
 }
 
+/// Conserva el mensaje escrito, amplía el historial y confirma lecturas sin recrear la página.
 class _SupportChatPageState extends ConsumerState<SupportChatPage> {
   final _message = TextEditingController(); // Conserva el mensaje sin enviar.
   late Future<List<SupportMessage>>
@@ -35,6 +36,7 @@ class _SupportChatPageState extends ConsumerState<SupportChatPage> {
   String?
   _lastRead; // Evita registrar varias veces la lectura del mismo mensaje.
 
+  /// Prepara las consultas y recursos locales al abrir la pantalla.
   @override
   void initState() {
     super.initState();
@@ -44,6 +46,7 @@ class _SupportChatPageState extends ConsumerState<SupportChatPage> {
     });
   }
 
+  /// Libera los controladores, suscripciones o temporizadores que conserva esta instancia.
   @override
   void dispose() {
     _timer?.cancel();
@@ -51,6 +54,7 @@ class _SupportChatPageState extends ConsumerState<SupportChatPage> {
     super.dispose();
   } // Libera el sondeo y el contenido temporal del chat.
 
+  /// Recupera los datos autorizados y conserva los errores necesarios para reintentar.
   Future<List<SupportMessage>> _load() async {
     _reading = true;
     try {
@@ -67,7 +71,9 @@ class _SupportChatPageState extends ConsumerState<SupportChatPage> {
         if (mounted) {
           _lastRead = messages.last.id;
           ref.invalidate(conversationsProvider);
-          ref.invalidate(currentUserProfileProvider);
+          if (!ref.read(currentUserProfileProvider).isLoading) {
+            ref.invalidate(currentUserProfileProvider);
+          } // Conserva la comprobación pendiente de roles si ya fue iniciada por el dashboard.
         } // Detecta una promoción o revocación comunicada en el chat.
       }
       return messages;
@@ -76,10 +82,12 @@ class _SupportChatPageState extends ConsumerState<SupportChatPage> {
     }
   }
 
+  /// Renueva los datos de esta sección conservando el estado local de su pantalla.
   void _refresh() {
     if (mounted) setState(() => _messages = _load());
   } // Conserva la pantalla y renueva únicamente su historial.
 
+  /// Conserva el mensaje escrito hasta que el servidor confirme su envío.
   Future<void> _send() async {
     if (_sending || _message.text.trim().isEmpty) return;
     setState(() => _sending = true);
@@ -98,6 +106,7 @@ class _SupportChatPageState extends ConsumerState<SupportChatPage> {
     }
   }
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     final userId = ref

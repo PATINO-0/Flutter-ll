@@ -35,6 +35,8 @@ Las migraciones deben aplicarse en este orden:
 5. `supabase/migrations/20261108040000_coffee_export_requests.sql`: incorpora transportador, cultivos y lotes propios, solicitudes, documentos, tarifa y cargos.
 6. `supabase/migrations/20261108050000_export_dispatch_and_channels.sql`: incorpora autorización del titular, revisión, canales, asignaciones y entrega.
 7. `supabase/migrations/20261108060000_export_freight_routes.sql`: utiliza las rutas y tarifas habilitadas de la tienda al cotizar y enviar, y conserva sus condiciones autorizadas.
+8. `supabase/migrations/20261109000000_agreement_lifecycle.sql`: incorpora propuesta, aceptación expresa del titular, vigencia, exclusión de duplicados y revocación con motivo y aviso.
+9. `supabase/migrations/20261109010000_coffee_supervision.sql`: restringe escritura de cultivos a asociado titular con convenio activo y administración, y permite al trabajador consultar sus titulares.
 
 También pueden ejecutarse completas desde el editor SQL del proyecto si el esquema anterior se administraba manualmente. La primera se ejecuta una sola vez; la segunda admite ejecuciones repetidas. No combines el editor SQL y el CLI sin sincronizar el historial de migraciones.
 

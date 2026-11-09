@@ -36,6 +36,7 @@ class _UserEditorDialogState extends ConsumerState<UserEditorDialog> {
       false; // Impide guardar dos veces o cerrar durante una operación.
   String? _error; // Presenta el error junto al formulario sin perder sus datos.
 
+  /// Prepara las consultas y recursos locales al abrir la pantalla.
   @override
   void initState() {
     super.initState(); // Inicializa el estado del diálogo.
@@ -49,6 +50,7 @@ class _UserEditorDialogState extends ConsumerState<UserEditorDialog> {
         ''; // Presenta el correo de acceso que también se actualizará en Auth.
   }
 
+  /// Libera los controladores, suscripciones o temporizadores que conserva esta instancia.
   @override
   void dispose() {
     _nameController.dispose(); // Libera el controlador del nombre.
@@ -122,6 +124,7 @@ class _UserEditorDialogState extends ConsumerState<UserEditorDialog> {
     }
   }
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     final creating =

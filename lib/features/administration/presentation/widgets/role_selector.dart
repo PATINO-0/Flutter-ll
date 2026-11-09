@@ -17,6 +17,7 @@ class RoleSelector extends StatelessWidget {
   onChanged; // Notifica una nueva selección sin modificar el perfil original.
   final bool enabled; // Evita modificaciones durante el guardado.
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     return Column(

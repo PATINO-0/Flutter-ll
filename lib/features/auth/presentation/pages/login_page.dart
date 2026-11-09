@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/material.dart'; // Construye los controles y estilos Material de la interfaz.
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Comparte consultas, estado y dependencias entre módulos.
 import 'package:go_router/go_router.dart'; // Abre el registro público.
 
 import '../../../../core/constants/app_routes.dart'; // Comparte la ruta del registro.
-import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/app_brand.dart';
-import '../providers/auth_providers.dart';
+import '../../../../core/utils/validators.dart'; // Reutiliza las entidades o servicios de validators.
+import '../../../../shared/widgets/app_brand.dart'; // Reutiliza las entidades o servicios de app_brand.
+import '../providers/auth_providers.dart'; // Reutiliza las entidades o servicios de auth_providers.
 
+/// Presenta el formulario público para ingresar con correo y contraseña.
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
@@ -16,6 +17,7 @@ class LoginPage extends ConsumerStatefulWidget {
   }
 }
 
+/// Valida credenciales, conserva controladores y presenta los errores del inicio de sesión.
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
 
@@ -24,6 +26,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   bool _obscurePassword = true;
 
+  /// Libera los controladores, suscripciones o temporizadores que conserva esta instancia.
   @override
   void dispose() {
     _emailController.dispose();
@@ -32,6 +35,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     super.dispose();
   }
 
+  /// Valida campos y consentimientos antes de enviar una única operación al servidor.
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
 
@@ -55,6 +59,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       ..showSnackBar(SnackBar(content: Text(errorMessage)));
   }
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);

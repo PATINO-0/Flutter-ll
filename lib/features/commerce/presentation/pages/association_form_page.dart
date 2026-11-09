@@ -7,6 +7,7 @@ import '../../domain/entities/commerce_models.dart'; // Define el expediente y s
 import '../providers/commerce_providers.dart'; // Comparte las consultas del módulo.
 import '../widgets/commerce_widgets.dart'; // Reutiliza errores y el aviso de tratamiento de datos.
 import 'support_chat_page.dart'; // Abre el canal donde se notificó la solicitud enviada.
+import '../widgets/agreement_actions.dart'; // Permite al personal fijar la vigencia antes de remitir la propuesta.
 
 /// Recoge los datos de un cliente y conserva su borrador al volver al formulario.
 class AssociationFormPage extends ConsumerStatefulWidget {
@@ -24,6 +25,7 @@ class AssociationFormPage extends ConsumerStatefulWidget {
       _AssociationFormPageState();
 }
 
+/// Conserva borrador, archivos, consentimiento y vigencia antes de remitir el expediente.
 class _AssociationFormPageState extends ConsumerState<AssociationFormPage> {
   final _formKey =
       GlobalKey<
@@ -47,13 +49,17 @@ class _AssociationFormPageState extends ConsumerState<AssociationFormPage> {
       false; // Evita duplicar cargas o envíos mientras se confirma una operación.
   bool _consent =
       false; // La aceptación nunca aparece seleccionada por defecto.
+  DateTime _validUntil =
+      defaultAgreementExpiration(); // La propuesta conserva una fecha explícita de vencimiento.
 
+  /// Prepara las consultas y recursos locales al abrir la pantalla.
   @override
   void initState() {
     super.initState();
     _loadDraft();
   } // Recupera o crea un borrador autorizado.
 
+  /// Libera los controladores, suscripciones o temporizadores que conserva esta instancia.
   @override
   void dispose() {
     for (final controller in [_name, _identity, _phone, _address, _business]) {
@@ -62,6 +68,7 @@ class _AssociationFormPageState extends ConsumerState<AssociationFormPage> {
     super.dispose();
   } // Libera los datos temporales del formulario.
 
+  /// Recupera el borrador autorizado y sus documentos sin aceptar datos o condiciones automáticamente.
   Future<void> _loadDraft() async {
     setState(() {
       _loading = true;
@@ -89,6 +96,7 @@ class _AssociationFormPageState extends ConsumerState<AssociationFormPage> {
     }
   }
 
+  /// Selecciona y valida un soporte y actualiza sus referencias únicamente después de guardarlo.
   Future<void> _upload(AgreementDocumentKind kind) async {
     if (_busy || _request == null) return;
     setState(
@@ -126,6 +134,7 @@ class _AssociationFormPageState extends ConsumerState<AssociationFormPage> {
     }
   }
 
+  /// Valida campos y consentimientos antes de enviar una única operación al servidor.
   Future<void> _submit() async {
     if (_busy || _request == null || !_formKey.currentState!.validate()) return;
     if (!_consent) {
@@ -153,6 +162,7 @@ class _AssociationFormPageState extends ConsumerState<AssociationFormPage> {
             address: _address.text,
             business: _business.text,
             consent: _consent,
+            validUntil: widget.onBehalf ? _validUntil : null,
           );
       if (!mounted) return;
       ref.invalidate(associationRequestsProvider);
@@ -176,6 +186,7 @@ class _AssociationFormPageState extends ConsumerState<AssociationFormPage> {
     }
   }
 
+  /// Valida los límites de texto que también exige el servidor.
   String? _required(String? value, int minimum, int maximum) {
     final text = value?.trim() ?? '';
     return text.length < minimum || text.length > maximum
@@ -183,6 +194,7 @@ class _AssociationFormPageState extends ConsumerState<AssociationFormPage> {
         : null;
   } // Mantiene visibles los límites que también valida el servidor.
 
+  /// Construye la interfaz y observa únicamente los datos que necesita esta vista.
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
@@ -226,6 +238,25 @@ class _AssociationFormPageState extends ConsumerState<AssociationFormPage> {
                           'Completa tus datos y adjunta los tres soportes. El equipo revisará la solicitud y responderá por el chat interno.',
                         ),
                         const SizedBox(height: 16),
+                        if (widget.onBehalf)
+                          OutlinedButton.icon(
+                            onPressed: _busy
+                                ? null
+                                : () async {
+                                    final date =
+                                        await chooseAgreementExpiration(
+                                          context,
+                                          _validUntil,
+                                        );
+                                    if (date != null && mounted) {
+                                      setState(() => _validUntil = date);
+                                    }
+                                  },
+                            icon: const Icon(Icons.event_outlined),
+                            label: Text(
+                              'Vigencia hasta ${agreementDate(_validUntil)}',
+                            ),
+                          ),
                         TextFormField(
                           controller: _name,
                           enabled: !_busy,

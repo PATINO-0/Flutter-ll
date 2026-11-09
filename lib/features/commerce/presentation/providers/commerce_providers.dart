@@ -10,28 +10,35 @@ final commerceRepositoryProvider = Provider<CommerceRepository>(
 ); // Mantiene un repositorio por sesión.
 final freightRatesProvider = FutureProvider.autoDispose<List<FreightRate>>((
   ref,
-) {
-  ref.watch(authSessionProvider.select((state) => state.asData?.value.userId));
+) async {
+  await ref.watch(currentUserAccessProvider.future);
+  if (!ref.mounted) return const [];
   return ref.watch(commerceRepositoryProvider).listRates();
 }); // Actualiza el catálogo cuando cambia la cuenta.
 final customerAccountsProvider = FutureProvider.autoDispose<List<UserProfile>>((
   ref,
-) {
-  ref.watch(currentUserProfileProvider);
+) async {
+  await ref.watch(currentUserAccessProvider.future);
+  if (!ref.mounted) return const [];
   return ref.watch(commerceRepositoryProvider).listCustomers();
 }); // Renueva las cuentas comerciales al cambiar los permisos.
 final associationRequestsProvider =
-    FutureProvider.autoDispose<List<AssociationRequest>>((ref) {
-      ref.watch(currentUserProfileProvider);
+    FutureProvider.autoDispose<List<AssociationRequest>>((ref) async {
+      await ref.watch(currentUserAccessProvider.future);
+      if (!ref.mounted) return const [];
       return ref.watch(commerceRepositoryProvider).listRequests();
     }); // Consulta las solicitudes autorizadas.
-final agreementsProvider = FutureProvider.autoDispose<List<Agreement>>((ref) {
-  ref.watch(currentUserProfileProvider);
+final agreementsProvider = FutureProvider.autoDispose<List<Agreement>>((
+  ref,
+) async {
+  await ref.watch(currentUserAccessProvider.future);
+  if (!ref.mounted) return const [];
   return ref.watch(commerceRepositoryProvider).listAgreements();
 }); // Consulta los convenios aprobados.
 final conversationsProvider =
-    FutureProvider.autoDispose<List<SupportConversation>>((ref) {
-      ref.watch(currentUserProfileProvider);
+    FutureProvider.autoDispose<List<SupportConversation>>((ref) async {
+      await ref.watch(currentUserAccessProvider.future);
+      if (!ref.mounted) return const [];
       return ref.watch(commerceRepositoryProvider).listConversations();
     }); // Comparte la bandeja y sus notificaciones.
 final associationRequestProvider = FutureProvider.autoDispose

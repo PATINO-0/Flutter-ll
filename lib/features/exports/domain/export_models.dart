@@ -8,6 +8,8 @@ class CoffeeCultivation {
     required this.location,
     required this.variety,
     required this.hectares,
+    this.ownerName = '',
+    this.ownerEmail = '',
   });
   final String id; // Identifica el cultivo al que pertenecerán los lotes.
   final String ownerId; // Mantiene la pertenencia del cultivo al asociado.
@@ -16,6 +18,10 @@ class CoffeeCultivation {
   final String location; // Conserva el municipio y la ubicación de origen.
   final String variety; // Identifica la variedad de café registrada.
   final double hectares; // Conserva el área declarada del cultivo.
+  final String
+  ownerName; // Identifica al titular durante la supervisión del trabajador.
+  final String
+  ownerEmail; // Distingue titulares con nombres similares sin exponer otras cuentas.
   factory CoffeeCultivation.fromMap(Map<String, dynamic> row) =>
       CoffeeCultivation(
         id: row['id'],
@@ -25,6 +31,8 @@ class CoffeeCultivation {
         location: row['location'],
         variety: row['variety'],
         hectares: (row['area_hectares'] as num).toDouble(),
+        ownerName: row['owner_name'] ?? '',
+        ownerEmail: row['owner_email'] ?? '',
       );
 }
 
@@ -41,6 +49,9 @@ class CoffeeExportLot {
     this.code,
     this.harvestDate,
     this.reservationStatus,
+    this.ownerName = '',
+    this.ownerEmail = '',
+    this.cultivationName = '',
   });
   final String id; // Identifica el lote en solicitudes y documentos.
   final String?
@@ -48,12 +59,17 @@ class CoffeeExportLot {
   final String? cultivationId; // Vincula el lote con su cultivo.
   final String? code; // Identifica el lote dentro del inventario del asociado.
   final String name; // Describe el café preparado para exportar.
+  final String ownerName; // Presenta el titular autorizado del lote.
+  final String ownerEmail; // Conserva el contacto del titular para el personal.
+  final String
+  cultivationName; // Identifica el cultivo de origen durante la consulta.
   final String origin; // Conserva el origen registrado del cultivo.
   final double weight; // Determina el costo cotizado por el servidor.
   final String? harvestDate; // Conserva la fecha de cosecha declarada.
   final String notes; // Conserva información de proceso y calidad.
   final String?
   reservationStatus; // Señala un borrador, revisión o aprobación que reserva el lote.
+  /// Excluye lotes sin identificación, en revisión o ya reservados por una exportación aprobada.
   bool get canRequest =>
       ownerId != null &&
       cultivationId != null &&
@@ -80,6 +96,9 @@ class CoffeeExportLot {
       harvestDate: row['harvest_date'],
       notes: row['notes'] ?? '',
       reservationStatus: reservation,
+      ownerName: row['owner_name'] ?? '',
+      ownerEmail: row['owner_email'] ?? '',
+      cultivationName: row['cultivation_name'] ?? '',
     );
   }
 }
@@ -185,7 +204,10 @@ class CoffeeExportRequest {
   final String? shipmentStatus; // Presenta el estado del envío aceptado.
   final String?
   chargeStatus; // Presenta el cargo como autorizado, no como un pago bancario ejecutado.
+  /// Construye el consecutivo visible de la solicitud sin exponer su identificador interno.
   String get label => 'EXP-${number.toString().padLeft(6, '0')}';
+
+  /// Traduce el estado persistido a una etiqueta comprensible para el usuario.
   String get statusLabel => switch (status) {
     'draft' => 'Borrador',
     'pending' => 'En revisión',
@@ -282,6 +304,7 @@ const coffeeDeliveryStatuses = {
   'delivered': 'Terminado · Entregado',
 };
 
+/// Representa una carga aprobada, su transportador, ubicación, eventos y entrega.
 class CoffeeShipment {
   const CoffeeShipment({
     required this.id,
@@ -321,6 +344,7 @@ class CoffeeShipment {
   canTake; // Refleja compatibilidad consultada en servidor; la toma vuelve a validarla.
   final String recipient; // Solo se entrega al transportador que tomó la carga.
   final String phone; // Solo se entrega al transportador asignado.
+  /// Distingue cargas aceptadas, recibidas o en tránsito de las entregas terminadas.
   bool get isActive =>
       const ['accepted', 'received', 'in_transit'].contains(status);
   factory CoffeeShipment.fromMap(Map<String, dynamic> row) {

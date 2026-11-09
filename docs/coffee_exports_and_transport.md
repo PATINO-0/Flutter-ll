@@ -9,14 +9,14 @@ El orden efectivo es **Administrador > Trabajador > Transportador > Asociado > C
 | Cliente | Tienda, vinculación y atención propia. |
 | Asociado | Tienda de tarifas y destinos; sus cultivos, lotes, convenios, solicitudes, documentos, envíos, seguimiento y chats. |
 | Transportador | Cargas disponibles, sus cargas asignadas, actualización de sus entregas y conversaciones de transporte. |
-| Trabajador | Todos los cultivos, clientes, convenios y expedientes; revisión de exportaciones y coordinación con transportadores. |
+| Trabajador | Consulta todos los cultivos y titulares sin modificarlos; gestiona clientes y convenios, revisa exportaciones y coordina transportadores. |
 | Administrador | Todos los módulos, administración de usuarios, tarifa por peso y operación de transporte. |
 
 Las restricciones también se aplican en PostgreSQL y Storage. El transportador no puede consultar documentos de exportación ni cargos. Recibe el contacto del destinatario cuando toma la carga. Los lotes antiguos sin propietario o cultivo se muestran al personal para asignarlos explícitamente; no se atribuyen a un asociado por suposición.
 
 ## Cultivos, lotes y solicitud
 
-En **Café**, el asociado registra nombre del cultivo, finca, ubicación, variedad y área. Registra después sus lotes con código, nombre, origen, peso, fecha de cosecha y observaciones. El personal puede gestionar estos datos para un asociado.
+En **Café**, el asociado con convenio activo registra nombre del cultivo, finca, ubicación, variedad y área. Registra después sus lotes con código, nombre, origen, peso, fecha de cosecha y observaciones. El trabajador supervisa el inventario con nombre y correo de su titular, sin registrar, modificar ni retirar cultivos o lotes. Administración conserva las acciones de corrección y asignación.
 
 Las solicitudes se crean únicamente desde **Exportaciones → Solicitar exportación**, seleccionando un lote propio. El servidor reserva el lote: no permite otra solicitud en borrador, pendiente o aprobada sobre el mismo lote. Una exportación aprobada reserva definitivamente ese lote, incluso después de la entrega. No se permite editar o retirar un lote reservado.
 
@@ -60,6 +60,10 @@ Para terminar se exige marcar la confirmación de entrega. El asociado recibe el
 
 Los chats y las cargas del transportador se actualizan cada cinco segundos mientras están abiertos. El dashboard comprueba roles y avisos cada quince segundos. Son notificaciones internas; no se implementan notificaciones push en segundo plano ni localización GPS automática.
 
+Las comprobaciones periódicas del perfil no vuelven a consultar todos los módulos: las listas dependen únicamente de la cuenta, su estado activo y el rol efectivo. Mientras no cambien esos permisos, se conservan las tarjetas desplegadas, el menú, los formularios y las selecciones abiertas. Los sondeos esperan a que termine una consulta pendiente para no reiniciarla continuamente en conexiones lentas. Un cambio real de permisos vuelve a cargar los datos autorizados; la desactivación sigue bloqueando el panel.
+
+Exportaciones y Seguimiento/Mis envíos actualizan su propia lista cada quince segundos cuando la ruta está visible, conservando los datos durante la consulta. No ejecutan ese sondeo mientras hay un formulario o diálogo abierto encima. El seguimiento identifica cada tarjeta por el envío para mantener su expansión aunque llegue otro registro a la lista.
+
 ## Activar en Supabase
 
 Desde la raíz del repositorio:
@@ -77,8 +81,10 @@ Se mantienen las cuatro migraciones iniciales y se añaden, en orden:
 5. `20261108040000_coffee_export_requests.sql`: transportador, propiedad de cultivos y lotes, expedientes, documentos, tarifa y cargos.
 6. `20261108050000_export_dispatch_and_channels.sql`: autorización del titular, revisión, canales, asignación de cargas y entrega.
 7. `20261108060000_export_freight_routes.sql`: tarifas y rutas habilitadas de la tienda, validación de la cotización y conservación de sus condiciones.
+8. `20261109000000_agreement_lifecycle.sql`: propuesta, aceptación, vigencia y revocación de convenios.
+9. `20261109010000_coffee_supervision.sql`: supervisión de Café, identidad de titulares y convenio activo para nuevas exportaciones.
 
-El CLI aplica únicamente las migraciones pendientes. Si las cuatro iniciales se aplicaron manualmente, sincroniza primero el historial del CLI o ejecuta completas únicamente las tres posteriores desde el editor SQL. Si ya aplicaste las seis primeras, ejecuta únicamente la séptima. No repitas la creación del esquema anterior. El archivo generado `build/coffee_exports_and_transport_update.sql` agrupa las migraciones quinta, sexta y séptima para una instalación que ya tenga las cuatro primeras; `build/export_freight_routes_update.sql` contiene solo la séptima.
+El CLI aplica únicamente las migraciones pendientes. Si el esquema anterior se aplicó manualmente, verifica y sincroniza primero su historial. Si ya están instaladas las siete migraciones iniciales, aplica solamente la octava y novena. No repitas la creación del esquema sobre tablas existentes. `build/final_mvp_update.sql` agrupa las dos migraciones finales; `build/coffee_exports_and_transport_update.sql` corresponde a la fase anterior de exportaciones y no debe repetirse sobre un proyecto que ya la tenga instalada.
 
 Las tres funciones de servidor validan la sesión y administración internamente, aunque la configuración del gateway use `verify_jwt = false`. La clave administrativa permanece en el servidor.
 

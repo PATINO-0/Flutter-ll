@@ -1,11 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; // Construye los controles y estilos Material de la interfaz.
 
+/// Define colores, tipografía y componentes Material utilizados en toda la aplicación.
 class AppTheme {
   AppTheme._();
 
   static const Color primaryColor = Color(0xFF315B4E);
   static const Color backgroundColor = Color(0xFFF6F7F5);
 
+  /// Construye los estilos Material compartidos por campos, botones y pantallas.
   static ThemeData get light {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: primaryColor,
