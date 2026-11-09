@@ -12,7 +12,7 @@ class RiexportApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
-      title: 'RIEXPORT UE',
+      title: 'Ritech', // Identifica la aplicación en el sistema operativo.
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: router,

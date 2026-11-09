@@ -10,6 +10,53 @@ class SupabaseAuthRepository implements AuthRepository {
 
   final AuthRemoteDataSource _dataSource;
 
+  /// Normaliza los datos y traduce los errores del registro a mensajes en español.
+  @override
+  Future<bool> signUp({
+    required String fullName,
+    required String email,
+    required String password,
+  }) async {
+    try {
+      return await _dataSource.signUp(
+        fullName: fullName.trim(), // Elimina espacios externos del nombre.
+        email: email
+            .trim()
+            .toLowerCase(), // Mantiene uniforme el correo de acceso.
+        password: password, // Conserva exactamente la contraseña ingresada.
+      );
+    } on AuthException catch (error) {
+      switch (error.code) {
+        case 'user_already_exists':
+        case 'email_exists':
+          throw const AppException(
+            'Ya existe una cuenta con este correo. Inicia sesión.',
+          );
+        case 'weak_password':
+          throw const AppException(
+            'La contraseña no cumple los requisitos de seguridad del servidor.',
+          );
+        case 'over_email_send_rate_limit':
+        case 'over_request_rate_limit':
+          throw const AppException(
+            'Se realizaron demasiados intentos. Espera unos minutos.',
+          );
+        case 'signup_disabled':
+          throw const AppException(
+            'El registro no está habilitado en este momento.',
+          );
+        default:
+          throw const AppException(
+            'No fue posible crear la cuenta. Intenta nuevamente.',
+          );
+      }
+    } catch (_) {
+      throw const AppException(
+        'No fue posible registrarte. Verifica tu conexión e intenta nuevamente.',
+      );
+    }
+  }
+
   @override
   Future<void> signIn({required String email, required String password}) async {
     try {

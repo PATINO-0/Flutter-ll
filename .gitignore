@@ -33,6 +33,10 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Excluye las dependencias y los archivos temporales de validación de Supabase.
+/supabase/tests/node_modules/
+/supabase/.temp/
+
 # Symbolication related
 app.*.symbols
 

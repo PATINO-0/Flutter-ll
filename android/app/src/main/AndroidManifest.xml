@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permite conectar con Supabase también en las compilaciones de producción. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="flutterll"
+        android:label="Ritech"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -1,275 +1,389 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async'; // Actualiza permisos y avisos mientras el panel está abierto.
+import 'package:flutter/material.dart'; // Construye el panel adaptable de la aplicación.
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Consulta la sesión y el perfil actual.
+import 'package:go_router/go_router.dart'; // Abre la administración desde el panel principal.
 
-import '../../../../shared/widgets/app_brand.dart';
-import '../../../../shared/widgets/coming_soon_panel.dart';
-import '../../../auth/presentation/providers/auth_providers.dart';
-import '../widgets/dashboard_home.dart';
+import '../../../../core/constants/app_routes.dart'; // Comparte las rutas de navegación.
+import '../../../../core/errors/app_exception.dart'; // Presenta los errores recuperables del perfil en español.
+import '../../../../shared/widgets/app_brand.dart'; // Presenta la identidad de Ritech.
+import '../../../auth/domain/entities/user_profile.dart'; // Determina las funciones disponibles por perfil.
+import '../../../auth/presentation/providers/auth_providers.dart'; // Proporciona autenticación y roles.
+import '../widgets/dashboard_home.dart'; // Presenta la bienvenida y los permisos del usuario.
+import '../../../commerce/presentation/pages/store_page.dart'; // Presenta la tienda reservada al cliente y al administrador.
+import '../../../commerce/presentation/pages/commerce_lists.dart'; // Integra clientes, solicitudes, convenios y atención.
+import '../../../commerce/presentation/providers/commerce_providers.dart'; // Actualiza notificaciones y cambios de rol.
+import '../../../operations/presentation/operations_pages.dart'; // Integra envíos, seguimiento, exportaciones y lotes de café.
 
+/// Adapta las opciones de navegación a los roles asignados en el servidor.
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
 
   @override
-  ConsumerState<DashboardPage> createState() {
-    return _DashboardPageState();
-  }
+  ConsumerState<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends ConsumerState<DashboardPage> {
-  int _selectedIndex = 0;
+/// Mantiene la sección elegida sin conceder permisos a través de la interfaz.
+class _DashboardPageState extends ConsumerState<DashboardPage>
+    with WidgetsBindingObserver {
+  String _selectedSection =
+      'Panel principal'; // Conserva la selección aunque cambien los roles.
+  Timer?
+  _refreshTimer; // Mantiene visibles respuestas nuevas y promociones a asociado.
 
-  static const _sections = [
-    _DashboardSection(
-      title: 'Panel principal',
-      icon: Icons.dashboard_outlined,
-      selectedIcon: Icons.dashboard,
-    ),
-    _DashboardSection(
-      title: 'Café',
-      icon: Icons.coffee_outlined,
-      selectedIcon: Icons.coffee,
-    ),
-    _DashboardSection(
-      title: 'Clientes',
-      icon: Icons.business_outlined,
-      selectedIcon: Icons.business,
-    ),
-    _DashboardSection(
-      title: 'Exportaciones',
-      icon: Icons.local_shipping_outlined,
-      selectedIcon: Icons.local_shipping,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState(); // Inicializa el estado visual del panel.
+    WidgetsBinding.instance.addObserver(
+      this,
+    ); // Detecta cuándo el usuario vuelve a la aplicación.
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+        ref.invalidate(currentUserProfileProvider);
+        ref.invalidate(conversationsProvider);
+      }
+    }); // La validación de permisos permanece siempre en el servidor.
+  }
 
+  @override
+  void dispose() {
+    _refreshTimer?.cancel(); // No mantiene consultas cuando el panel se cierra.
+    WidgetsBinding.instance.removeObserver(
+      this,
+    ); // Libera la observación del ciclo de vida.
+    super.dispose(); // Completa la liberación del estado.
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(
+        currentUserProfileProvider,
+      ); // Actualiza los roles al volver a la aplicación.
+    }
+  }
+
+  /// Construye solamente las opciones que corresponden a las responsabilidades del perfil.
+  List<_DashboardSection> _sectionsFor(UserProfile profile) {
+    final unread = profile.roles.isEmpty
+        ? 0
+        : ref
+                  .watch(conversationsProvider)
+                  .asData
+                  ?.value
+                  .fold<int>(0, (count, item) => count + item.unreadCount) ??
+              0; // Agrega los avisos nuevos del chat autorizado.
+    return [
+      if (profile.effectiveRole?.value != 'client')
+        const _DashboardSection(
+          'Panel principal',
+          Icons.dashboard_outlined,
+        ), // El cliente entra directamente a su tienda.
+      if (profile.canAccessStore)
+        const _DashboardSection('Tienda', Icons.storefront_outlined),
+      if (profile.canAccessStore || profile.canManageOperations)
+        const _DashboardSection('Solicitudes', Icons.assignment_outlined),
+      if (profile.canCreateShipments)
+        const _DashboardSection('Mis envíos', Icons.inventory_2_outlined),
+      if (profile.canCreateShipments)
+        const _DashboardSection('Seguimiento', Icons.location_on_outlined),
+      if (profile.canManageOperations)
+        const _DashboardSection('Convenios', Icons.handshake_outlined),
+      if (profile.canCreateShipments)
+        const _DashboardSection('Exportaciones', Icons.local_shipping_outlined),
+      if (profile.canManageOperations) ...[
+        const _DashboardSection(
+          'Café',
+          Icons.coffee_outlined,
+        ), // Conserva el módulo existente de productos.
+        const _DashboardSection(
+          'Clientes',
+          Icons.business_outlined,
+        ), // Reserva la gestión interna a trabajadores.
+      ],
+      if (profile.roles.isNotEmpty)
+        _DashboardSection('Chat de atención', Icons.chat_outlined, unread),
+      if (profile.isAdmin)
+        const _DashboardSection(
+          'Administración de usuarios',
+          Icons.admin_panel_settings_outlined,
+        ),
+    ];
+  }
+
+  /// Solicita el cierre de sesión y presenta los errores recuperables.
   Future<void> _logout() async {
-    final errorMessage = await ref
+    final message = await ref
         .read(authControllerProvider.notifier)
-        .signOut();
-
-    if (!mounted || errorMessage == null) {
-      return;
+        .signOut(); // Cierra la sesión de Supabase.
+    if (mounted && message != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(errorMessage)));
   }
 
-  void _selectSection(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+  /// Mantiene la administración como una pantalla separada del contenido operativo.
+  Future<void> _selectSection(_DashboardSection section) async {
+    if (section.title == 'Administración de usuarios') {
+      await context.push(
+        AppRoutes.administration,
+      ); // La ruta verifica nuevamente el rol en el servidor.
+      if (mounted) {
+        ref.invalidate(
+          currentUserProfileProvider,
+        ); // Actualiza el menú al regresar.
+      }
+      return; // Conserva la sección operativa anterior.
+    }
+    setState(
+      () => _selectedSection = section.title,
+    ); // Selecciona una sección permitida del panel.
   }
 
-  Widget _buildContent(String userName) {
-    switch (_selectedIndex) {
-      case 0:
-        return DashboardHome(userName: userName);
-
-      case 1:
-        return const Padding(
-          padding: EdgeInsets.all(24),
-          child: ComingSoonPanel(
-            title: 'Gestión de Café',
-            description:
-                'El registro, consulta, detalle y edición de café se implementarán en el Sprint 3.',
-            icon: Icons.coffee_outlined,
-          ),
-        );
-
-      case 2:
-        return const Padding(
-          padding: EdgeInsets.all(24),
-          child: ComingSoonPanel(
-            title: 'Gestión de Clientes',
-            description:
-                'El registro, consulta, detalle y edición de clientes se implementarán en el Sprint 3.',
-            icon: Icons.business_outlined,
-          ),
-        );
-
-      case 3:
-        return const Padding(
-          padding: EdgeInsets.all(24),
-          child: ComingSoonPanel(
-            title: 'Gestión de Exportaciones',
-            description:
-                'Las exportaciones, estados y documentos se implementarán en el Sprint 4.',
-            icon: Icons.local_shipping_outlined,
-          ),
-        );
-
-      default:
-        return DashboardHome(userName: userName);
+  /// Abre el módulo autorizado por la sección efectiva del usuario.
+  Widget _buildContent(UserProfile profile, _DashboardSection section) {
+    switch (section.title) {
+      case 'Mis envíos':
+        return const ShipmentsPage();
+      case 'Exportaciones':
+        return const ShipmentsPage(title: 'Exportaciones', exportsOnly: true);
+      case 'Seguimiento':
+        return const ShipmentsPage(title: 'Seguimiento', tracking: true);
+      case 'Café':
+        return const CoffeeLotsPage();
+      case 'Tienda':
+        return const StorePage();
+      case 'Solicitudes':
+        return const AssociationRequestsPage();
+      case 'Clientes':
+        return const CustomerAccountsPage();
+      case 'Convenios':
+        return const AgreementsPage();
+      case 'Chat de atención':
+        return const SupportInboxPage();
     }
+    return DashboardHome(
+      profile: profile,
+    ); // Conserva un panel válido cuando cambia la selección por una modificación de roles.
   }
 
   @override
   Widget build(BuildContext context) {
-    final profileAsync = ref.watch(currentUserProfileProvider);
-    final authState = ref.watch(authControllerProvider);
-    final logoutLoading = authState.isLoading;
-
-    final userName = profileAsync.when(
-      data: (profile) {
-        if (profile == null || profile.fullName.trim().isEmpty) {
-          return 'Usuario';
+    final profile = ref.watch(
+      currentUserProfileProvider,
+    ); // Consulta el perfil antes de mostrar funciones.
+    final loading = ref
+        .watch(authControllerProvider)
+        .isLoading; // Evita cierres de sesión simultáneos.
+    return profile.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, _) => _buildProfileError(
+        error is AppException
+            ? error.userMessage
+            : 'No fue posible cargar tu perfil. Intenta nuevamente.',
+        loading,
+      ),
+      data: (user) {
+        if (user == null) {
+          return _buildProfileError(
+            'Tu perfil no está disponible. Contacta al administrador.',
+            loading,
+          );
         }
-
-        return profile.fullName;
-      },
-      loading: () => 'Usuario',
-      error: (_, _) => 'Usuario',
-    );
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < 600;
-        final isDesktop = constraints.maxWidth > 1024;
-
-        if (isMobile) {
-          return Scaffold(
-            appBar: AppBar(title: const AppBrand(compact: true)),
-            drawer: Drawer(
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.all(20),
-                      child: AppBrand(compact: true),
+        if (!user.isActive) {
+          return _buildProfileError(
+            'Tu acceso a Ritech fue retirado. Contacta al administrador.',
+            loading,
+          ); // Bloquea también las sesiones abiertas antes de la eliminación.
+        }
+        final sections = _sectionsFor(
+          user,
+        ); // Construye el menú con los roles recibidos del servidor.
+        final foundIndex = sections.indexWhere(
+          (section) => section.title == _selectedSection,
+        ); // Busca la selección vigente.
+        final selectedIndex = foundIndex < 0
+            ? 0
+            : foundIndex; // Vuelve al panel si un rol dejó de permitir la sección.
+        final content = _buildContent(
+          user,
+          sections[selectedIndex],
+        ); // Nunca muestra una sección retirada del menú.
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final mobile =
+                constraints.maxWidth < 600 ||
+                constraints.maxHeight < sections.length * 56 + 160 ||
+                sections.length <
+                    2; // El menú lateral también admite cuentas sin módulos asignados.
+            if (mobile) {
+              return Scaffold(
+                appBar: AppBar(
+                  title: const AppBrand(compact: true),
+                  actions: [
+                    IconButton(
+                      tooltip: 'Actualizar perfil y permisos',
+                      onPressed: () =>
+                          ref.invalidate(currentUserProfileProvider),
+                      icon: const Icon(Icons.refresh),
                     ),
-                    const Divider(height: 1),
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _sections.length,
-                        itemBuilder: (context, index) {
-                          final section = _sections[index];
-
-                          return ListTile(
-                            selected: _selectedIndex == index,
-                            leading: Icon(
-                              _selectedIndex == index
-                                  ? section.selectedIcon
-                                  : section.icon,
-                            ),
-                            title: Text(section.title),
-                            onTap: () {
-                              Navigator.of(context).pop();
-                              _selectSection(index);
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: ListTile(
-                        leading: logoutLoading
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                  ],
+                ),
+                drawer: Drawer(
+                  child: SafeArea(
+                    child: Column(
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.all(20),
+                          child: AppBrand(compact: true),
+                        ),
+                        Expanded(
+                          child: ListView(
+                            children: [
+                              for (final section in sections)
+                                ListTile(
+                                  selected:
+                                      section.title ==
+                                      sections[selectedIndex]
+                                          .title, // Señala la sección operativa actual.
+                                  leading: Badge(
+                                    isLabelVisible: section.unreadCount > 0,
+                                    label: Text('${section.unreadCount}'),
+                                    child: Icon(section.icon),
+                                  ), // Señala también las solicitudes y respuestas sin leer.
+                                  title: Text(
+                                    section.title,
+                                  ), // Presenta el módulo en español.
+                                  onTap: () {
+                                    Navigator.of(
+                                      context,
+                                    ).pop(); // Cierra el menú antes de navegar.
+                                    _selectSection(
+                                      section,
+                                    ); // Abre únicamente una opción permitida.
+                                  },
                                 ),
-                              )
-                            : const Icon(Icons.logout),
-                        title: const Text('Cerrar sesión'),
-                        onTap: logoutLoading ? null : _logout,
-                      ),
+                            ],
+                          ),
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.logout),
+                          title: const Text('Cerrar sesión'),
+                          onTap: loading ? null : _logout,
+                        ),
+                      ],
                     ),
+                  ),
+                ),
+                body:
+                    content, // Presenta el contenido permitido en el espacio principal.
+              );
+            }
+            return Scaffold(
+              body: SafeArea(
+                child: Row(
+                  children: [
+                    NavigationRail(
+                      extended:
+                          constraints.maxWidth >
+                          1024, // Muestra etiquetas cuando hay espacio suficiente.
+                      selectedIndex:
+                          selectedIndex, // Señala la sección vigente del panel.
+                      onDestinationSelected: (index) => _selectSection(
+                        sections[index],
+                      ), // Abre la opción elegida.
+                      leading: const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('Ritech'),
+                      ),
+                      trailing: Expanded(
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Column(
+                            mainAxisSize: MainAxisSize
+                                .min, // Agrupa las acciones al pie del menú.
+                            children: [
+                              IconButton(
+                                tooltip: 'Actualizar perfil y permisos',
+                                onPressed: () =>
+                                    ref.invalidate(currentUserProfileProvider),
+                                icon: const Icon(Icons.refresh),
+                              ),
+                              IconButton(
+                                tooltip: 'Cerrar sesión',
+                                onPressed: loading ? null : _logout,
+                                icon: const Icon(Icons.logout),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      destinations: [
+                        for (final section in sections)
+                          NavigationRailDestination(
+                            icon: Badge(
+                              isLabelVisible: section.unreadCount > 0,
+                              label: Text('${section.unreadCount}'),
+                              child: Icon(section.icon),
+                            ),
+                            label: Text(section.title),
+                          ),
+                      ],
+                    ),
+                    const VerticalDivider(
+                      width: 1,
+                    ), // Separa visualmente navegación y contenido.
+                    Expanded(
+                      child: content,
+                    ), // Aprovecha el ancho disponible para el módulo.
                   ],
                 ),
               ),
-            ),
-            body: _buildContent(userName),
-          );
-        }
-
-        return Scaffold(
-          body: SafeArea(
-            child: Row(
-              children: [
-                NavigationRail(
-                  extended: isDesktop,
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: _selectSection,
-                  leading: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    child: isDesktop
-                        ? const SizedBox(
-                            width: 210,
-                            child: AppBrand(compact: true),
-                          )
-                        : Icon(
-                            Icons.coffee,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                  ),
-                  trailing: Expanded(
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 18),
-                        child: isDesktop
-                            ? TextButton.icon(
-                                onPressed: logoutLoading ? null : _logout,
-                                icon: logoutLoading
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(Icons.logout),
-                                label: const Text('Cerrar sesión'),
-                              )
-                            : IconButton(
-                                tooltip: 'Cerrar sesión',
-                                onPressed: logoutLoading ? null : _logout,
-                                icon: logoutLoading
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(Icons.logout),
-                              ),
-                      ),
-                    ),
-                  ),
-                  destinations: [
-                    for (final section in _sections)
-                      NavigationRailDestination(
-                        icon: Icon(section.icon),
-                        selectedIcon: Icon(section.selectedIcon),
-                        label: Text(section.title),
-                      ),
-                  ],
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(child: _buildContent(userName)),
-              ],
-            ),
-          ),
+            );
+          },
         );
       },
     );
   }
+
+  /// Mantiene disponibles la recuperación y la salida cuando el perfil no se puede leer.
+  Widget _buildProfileError(String message, bool loading) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(
+            24,
+          ), // Mantiene el mensaje legible en móvil.
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                message,
+                textAlign: TextAlign.center,
+              ), // Explica por qué no se muestra el panel.
+              TextButton(
+                onPressed: () => ref.invalidate(currentUserProfileProvider),
+                child: const Text('Reintentar'),
+              ),
+              TextButton(
+                onPressed: loading ? null : _logout,
+                child: const Text('Cerrar sesión'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
+/// Relaciona una opción del menú con su título e icono.
 class _DashboardSection {
-  const _DashboardSection({
-    required this.title,
-    required this.icon,
-    required this.selectedIcon,
-  });
+  const _DashboardSection(this.title, this.icon, [this.unreadCount = 0]);
 
-  final String title;
-  final IconData icon;
-  final IconData selectedIcon;
+  final String title; // Identifica la sección seleccionada y su texto visible.
+  final IconData icon; // Representa el módulo en el menú adaptable.
+  final int
+  unreadCount; // Conserva el número de notificaciones del chat de atención.
 }

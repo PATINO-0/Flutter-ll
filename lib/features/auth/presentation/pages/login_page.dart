@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart'; // Abre el registro público.
 
+import '../../../../core/constants/app_routes.dart'; // Comparte la ruta del registro.
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/app_brand.dart';
 import '../providers/auth_providers.dart';
@@ -160,15 +162,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               : const Text('Iniciar sesión'),
                         ),
                         const SizedBox(height: 18),
-                        Text(
-                          'Acceso exclusivo para usuarios autorizados de RiTech SAS.',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
-                              ),
+                        TextButton(
+                          onPressed: loading
+                              ? null
+                              : () => context.go(
+                                  AppRoutes.register,
+                                ), // Permite registrarse sin una cuenta previa.
+                          child: const Text(
+                            '¿No tienes una cuenta? Regístrate',
+                          ),
                         ),
                       ],
                     ),

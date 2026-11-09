@@ -20,7 +20,8 @@ class AppBrand extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
           ),
           child: Icon(
-            Icons.coffee_rounded,
+            Icons
+                .local_shipping_rounded, // Representa los servicios logísticos de Ritech.
             color: theme.colorScheme.onPrimary,
             size: compact ? 24 : 28,
           ),
@@ -32,7 +33,7 @@ class AppBrand extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'RIEXPORT UE',
+                'Ritech', // Presenta el nombre de la aplicación.
                 style: compact
                     ? theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
@@ -43,7 +44,7 @@ class AppBrand extends StatelessWidget {
               ),
               if (!compact)
                 Text(
-                  'Gestión de Exportaciones de Café',
+                  'Envíos, seguimiento y convenios', // Resume los servicios de la aplicación.
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

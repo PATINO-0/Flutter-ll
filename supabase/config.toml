@@ -1,0 +1,10 @@
+# Identifica este proyecto en las herramientas locales de Supabase.
+project_id = "ritech"
+
+[functions.create-user]
+# La función verifica el JWT con Auth para admitir claves publicables y tokens actuales.
+verify_jwt = false
+
+[functions.manage-user]
+# La función valida explícitamente identidad y administración antes de actualizar o revocar acceso.
+verify_jwt = false

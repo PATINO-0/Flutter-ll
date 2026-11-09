@@ -33,6 +33,9 @@ final authSessionProvider = StreamProvider<AuthSessionEvent>((ref) {
 final currentUserProfileProvider = FutureProvider.autoDispose<UserProfile?>((
   ref,
 ) async {
+  ref.watch(
+    authSessionProvider.select((session) => session.asData?.value.userId),
+  ); // Recarga cuando cambia la cuenta, sin repetir consultas por cada renovación del token.
   final authRepository = ref.watch(authRepositoryProvider);
 
   final userId = authRepository.currentUserId;
@@ -48,6 +51,38 @@ final authControllerProvider =
     NotifierProvider<AuthController, AsyncValue<bool>>(AuthController.new);
 
 class AuthController extends Notifier<AsyncValue<bool>> {
+  /// Registra una cuenta sin permitir la selección pública de roles.
+  Future<String?> signUp({
+    required String fullName,
+    required String email,
+    required String password,
+  }) async {
+    if (state.isLoading) {
+      return null; // Evita enviar dos solicitudes simultáneas.
+    }
+    state =
+        const AsyncLoading(); // Desactiva el formulario durante el registro.
+    try {
+      await ref
+          .read(authRepositoryProvider)
+          .signUp(fullName: fullName, email: email, password: password);
+      if (!ref.mounted) {
+        return null; // Evita actualizar un controlador ya cerrado.
+      }
+      state = AsyncData(ref.read(authRepositoryProvider).hasSession);
+      ref.invalidate(
+        currentUserProfileProvider,
+      ); // Carga el perfil creado por el servidor.
+      return null; // La pantalla decide entre el panel y la confirmación del correo.
+    } on AppException catch (error, stackTrace) {
+      if (ref.mounted) state = AsyncError(error, stackTrace);
+      return error.userMessage; // Presenta solamente mensajes traducidos.
+    } catch (error, stackTrace) {
+      if (ref.mounted) state = AsyncError(error, stackTrace);
+      return 'No fue posible crear la cuenta. Intenta nuevamente.';
+    }
+  }
+
   @override
   AsyncValue<bool> build() {
     final hasSession = ref.read(authRepositoryProvider).hasSession;
