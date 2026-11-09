@@ -8,10 +8,11 @@ La aplicación permite el registro público de clientes y ofrece un panel adicio
 | --- | --- | --- |
 | Administrador | `admin` | Administración de usuarios y acceso a los módulos del sistema. |
 | Cliente | `client` | Tienda, solicitud de vinculación y atención propia. |
-| Asociado | `associate` | Mis envíos, exportaciones, seguimiento y atención propia. |
+| Asociado | `associate` | Tienda de tarifas y destinos; sus cultivos, lotes, convenios, envíos, exportaciones, seguimiento y atención propia. |
 | Trabajador | `worker` | Café, clientes, solicitudes, convenios, exportaciones, seguimiento y atención. |
+| Transportador | `transporter` | Cargas disponibles, sus envíos asignados, actualización de entregas y chat de transporte. |
 
-Funcionan el registro, la administración de cuentas y roles y el flujo de tienda, convenios, chat y operaciones. Predomina el rol de mayor acceso. La [guía de convenios y atención](association_workflow.md) describe los permisos actualizados y sus reglas de servidor.
+Funcionan el registro, la administración de cuentas y roles y el flujo de tienda, convenios, chat y operaciones. Predomina Administrador > Trabajador > Transportador > Asociado > Cliente. La [guía de convenios y atención](association_workflow.md) describe la vinculación y la [guía de exportaciones y transporte](coffee_exports_and_transport.md) detalla el flujo de café, cargos y entregas.
 
 ## Aplicar los cambios en Supabase
 
@@ -22,7 +23,7 @@ npx supabase@3.0.0 login
 npx supabase@3.0.0 link --project-ref mdlcewexhzskapxiklsm
 npx supabase@3.0.0 db push --remote --dry-run
 npx supabase@3.0.0 db push --remote --yes
-npx supabase@3.0.0 functions deploy create-user manage-user --use-api --yes
+npx supabase@3.0.0 functions deploy create-user manage-user seed-transporters --use-api --yes
 ```
 
 Las migraciones deben aplicarse en este orden:
@@ -31,6 +32,9 @@ Las migraciones deben aplicarse en este orden:
 2. `supabase/migrations/20261108010000_assign_test_administrator.sql`: asigna administración a la cuenta de prueba indicada por el propietario y actualiza el esquema publicado.
 3. `supabase/migrations/20261108020000_association_workflow.sql`: incorpora estado activo, tienda, solicitudes, documentos privados, convenios y chat.
 4. `supabase/migrations/20261108030000_commercial_operations.sql`: incorpora envíos, historial de seguimiento y gestión de café.
+5. `supabase/migrations/20261108040000_coffee_export_requests.sql`: incorpora transportador, cultivos y lotes propios, solicitudes, documentos, tarifa y cargos.
+6. `supabase/migrations/20261108050000_export_dispatch_and_channels.sql`: incorpora autorización del titular, revisión, canales, asignaciones y entrega.
+7. `supabase/migrations/20261108060000_export_freight_routes.sql`: utiliza las rutas y tarifas habilitadas de la tienda al cotizar y enviar, y conserva sus condiciones autorizadas.
 
 También pueden ejecutarse completas desde el editor SQL del proyecto si el esquema anterior se administraba manualmente. La primera se ejecuta una sola vez; la segunda admite ejecuciones repetidas. No combines el editor SQL y el CLI sin sincronizar el historial de migraciones.
 
@@ -82,6 +86,18 @@ La creación utiliza la API administrativa del servidor y conserva la sesión ac
 La edición sustituye todos los roles en una transacción de PostgreSQL. Un bloqueo transaccional serializa estas modificaciones y evita que dos cambios de roles retiren simultáneamente a los últimos administradores. Las restricciones se aplican también al editar la propia cuenta.
 
 La aplicación vuelve a cargar el perfil cuando cambia la sesión, al regresar desde administración, al volver del segundo plano o al pulsar actualizar. Las operaciones administrativas verifican los roles actuales en el servidor, por lo que una revocación no requiere renovar el token para impedir nuevas operaciones.
+
+## Error de CORS al actualizar un usuario
+
+Si el navegador indica que la petición previa no tiene un estado HTTP correcto, comprueba primero la respuesta de `OPTIONS` a `/functions/v1/manage-user`. Un `404` con `Requested function was not found` indica que falta desplegar esa función; no se corrige modificando los roles del administrador ni las políticas de lectura.
+
+Desplegar únicamente `seed-transporters` crea el servicio de cuentas de prueba, pero no instala los servicios de creación ni edición de usuarios. Desde la raíz del proyecto, ejecuta:
+
+```powershell
+npx supabase@3.0.0 functions deploy create-user manage-user --project-ref mdlcewexhzskapxiklsm --use-api --yes
+```
+
+Después, `OPTIONS` debe devolver un estado correcto y permitir las cabeceras `authorization`, `apikey`, `x-client-info` y `content-type`. Un `POST` sin sesión debe seguir devolviendo `401`; admitir CORS no concede administración. Recarga la aplicación y prueba la edición con una sesión administrativa vigente. Los tests de funciones comprueban ambas condiciones sin crear ni modificar cuentas reales.
 
 ## Validación local
 

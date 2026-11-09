@@ -65,7 +65,7 @@ void main() {
       );
       expect(
         buildProfile([UserRole.client, UserRole.associate]).canAccessStore,
-        isFalse,
+        isTrue, // El asociado consulta las tarifas para seleccionar su ruta.
       );
       expect(
         buildProfile([UserRole.client, UserRole.worker]).canManageOperations,

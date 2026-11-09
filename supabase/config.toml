@@ -8,3 +8,7 @@ verify_jwt = false
 [functions.manage-user]
 # La función valida explícitamente identidad y administración antes de actualizar o revocar acceso.
 verify_jwt = false
+
+[functions.seed-transporters]
+# Solo una sesión administrativa válida puede crear las cinco cuentas de prueba solicitadas.
+verify_jwt = false

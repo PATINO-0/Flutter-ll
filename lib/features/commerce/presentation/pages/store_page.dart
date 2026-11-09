@@ -13,7 +13,7 @@ class StorePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(currentUserProfileProvider).asData?.value;
     return CommerceSection(
-      title: 'Tienda de servicios de importación',
+      title: 'Tienda de tarifas y destinos',
       actions: [
         OutlinedButton(
           onPressed: () => ref.invalidate(freightRatesProvider),
@@ -63,6 +63,10 @@ class StorePage extends ConsumerWidget {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         Text(rate.description),
+                        if (rate.isCoffeeExportAvailable)
+                          const Chip(
+                            label: Text('Ruta habilitada para exportar café'),
+                          ),
                         if (rate.isReference)
                           const Chip(
                             label: Text(
@@ -82,31 +86,34 @@ class StorePage extends ConsumerWidget {
             ],
           ),
         ),
-        const SizedBox(height: 24),
-        Text(
-          'Conviértete en asociado exportador',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const Text(
-          'Completa tus datos, adjunta tu identificación, una carta firmada de solicitud de convenio y un certificado tributario. El equipo revisará los documentos y te responderá por el chat.',
-        ),
-        const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: profile == null
-              ? null
-              : () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => AssociationFormPage(customer: profile),
+        if (profile?.effectiveRole?.value == 'client' ||
+            profile?.isAdmin == true) ...[
+          const SizedBox(height: 24),
+          Text(
+            'Conviértete en asociado exportador',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const Text(
+            'Completa tus datos, adjunta tu identificación, una carta firmada de solicitud de convenio y un certificado tributario. El equipo revisará los documentos y te responderá por el chat.',
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: profile == null
+                ? null
+                : () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => AssociationFormPage(customer: profile),
+                    ),
                   ),
-                ),
-          icon: const Icon(Icons.handshake_outlined),
-          label: const Text('Quiero convertirme en asociado exportador'),
-        ),
-        TextButton.icon(
-          onPressed: () => showDataProcessingNotice(context),
-          icon: const Icon(Icons.privacy_tip_outlined),
-          label: const Text('Tratamiento de datos'),
-        ),
+            icon: const Icon(Icons.handshake_outlined),
+            label: const Text('Quiero convertirme en asociado exportador'),
+          ),
+          TextButton.icon(
+            onPressed: () => showDataProcessingNotice(context),
+            icon: const Icon(Icons.privacy_tip_outlined),
+            label: const Text('Tratamiento de datos'),
+          ),
+        ], // El asociado consulta tarifas sin volver a solicitar su vinculación.
       ],
     );
   }
@@ -127,6 +134,7 @@ class StorePage extends ConsumerWidget {
     var currency = rate?.currency ?? 'USD';
     var reference = rate?.isReference ?? true;
     var active = rate?.isActive ?? true;
+    var coffeeExport = rate?.allowsCoffeeExport ?? false;
     var busy = false;
     String? error;
     await showCommerceDialog<void>(
@@ -204,11 +212,24 @@ class StorePage extends ConsumerWidget {
                         ),
                       ),
                       CheckboxListTile(
+                        value: coffeeExport,
+                        onChanged: busy
+                            ? null
+                            : (value) =>
+                                  setState(() => coffeeExport = value == true),
+                        title: const Text('Habilitar para exportación de café'),
+                        subtitle: const Text(
+                          'Requiere unidad kg y un origen y destino diferentes. Solo las tarifas activas aparecerán al solicitar una exportación.',
+                        ),
+                      ),
+                      CheckboxListTile(
                         value: active,
                         onChanged: busy
                             ? null
                             : (value) => setState(() => active = value == true),
-                        title: const Text('Mostrar en la tienda'),
+                        title: const Text(
+                          'Tarifa activa en la tienda y solicitudes',
+                        ),
                       ),
                       if (error != null) Text(error!),
                     ],
@@ -226,6 +247,18 @@ class StorePage extends ConsumerWidget {
                     ? null
                     : () async {
                         if (!form.currentState!.validate()) return;
+                        if (coffeeExport &&
+                            (unit.text.trim().toLowerCase() != 'kg' ||
+                                origin.text.trim().length > 120 ||
+                                destination.text.trim().length > 120 ||
+                                origin.text.trim().toLowerCase() ==
+                                    destination.text.trim().toLowerCase())) {
+                          setState(
+                            () => error =
+                                'Para café utiliza kg y dos lugares diferentes de hasta 120 caracteres.',
+                          );
+                          return;
+                        }
                         setState(() {
                           busy = true;
                           error = null;
@@ -244,6 +277,7 @@ class StorePage extends ConsumerWidget {
                             'description': description.text.trim(),
                             'is_reference': reference,
                             'is_active': active,
+                            'allows_coffee_export': coffeeExport,
                           });
                           if (context.mounted) {
                             ref.invalidate(freightRatesProvider);

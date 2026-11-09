@@ -101,7 +101,9 @@ export async function handleRequest(request: Request): Promise<Response> {
       fullName.length < 3 || fullName.length > 100 ||
       !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !Array.isArray(roles) ||
       roles.some((role) =>
-        !["admin", "worker", "associate", "client"].includes(role)
+        !["admin", "worker", "transporter", "associate", "client"].includes(
+          role,
+        )
       )
     ) {
       return respond(400, {

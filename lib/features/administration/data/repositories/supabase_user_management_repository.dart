@@ -35,15 +35,12 @@ class SupabaseUserManagementRepository implements UserManagementRepository {
     try {
       await _client.functions.invoke('manage-user', body: body);
     } on FunctionException catch (error) {
-      final details = error.details;
       throw AppException(
-        details is Map && details['error'] is String
-            ? details['error']
-            : 'No fue posible modificar el usuario.',
-      );
+        _functionMessage(error),
+      ); // Distingue una función ausente de un rechazo de permisos o datos.
     } catch (_) {
       throw const AppException(
-        'No fue posible modificar el usuario. Verifica tu conexión.',
+        'No se pudo contactar al servicio de administración. Verifica la conexión y que su configuración esté completa.',
       );
     }
   }
@@ -124,21 +121,36 @@ class SupabaseUserManagementRepository implements UserManagementRepository {
         },
       );
     } on FunctionException catch (error) {
-      final details =
-          error.details; // Consulta el mensaje controlado de la función.
-      if (details is Map && details['error'] is String) {
-        throw AppException(
-          details['error'] as String,
-        ); // Muestra el error traducido por el servidor.
-      }
-      throw const AppException(
-        'No fue posible crear el usuario. Intenta nuevamente.',
-      );
+      throw AppException(
+        _functionMessage(error),
+      ); // Mantiene el mismo diagnóstico para crear, editar y retirar acceso.
     } catch (_) {
       throw const AppException(
-        'No fue posible crear el usuario. Verifica tu conexión.',
+        'No se pudo contactar al servicio de administración. Verifica la conexión y que su configuración esté completa.',
       );
     }
+  }
+
+  /// Conserva los mensajes del servidor y traduce los fallos del servicio que antes se mostraban como un error genérico.
+  String _functionMessage(FunctionException error) {
+    final details = error.details;
+    if (details is Map && details['error'] is String) {
+      return details['error']
+          as String; // Conserva, por ejemplo, la protección del último administrador.
+    }
+    if (error.status == 0) {
+      return 'No se pudo contactar al servicio de administración. Verifica la conexión y que su configuración esté completa.'; // El navegador no permite distinguir un bloqueo de CORS de otros fallos de transporte.
+    }
+    if (error.status == 404) {
+      return 'El servicio de administración de usuarios no está configurado. Completa su instalación e intenta nuevamente.';
+    }
+    if (error.status == 401) {
+      return 'Tu sesión no es válida. Vuelve a iniciar sesión.';
+    }
+    if (error.status == 403) {
+      return 'Necesitas permisos de administrador para realizar esta acción.';
+    }
+    return 'El servicio de administración no está disponible. Intenta nuevamente.';
   }
 
   /// Traduce códigos conocidos sin mostrar detalles internos de la base de datos.

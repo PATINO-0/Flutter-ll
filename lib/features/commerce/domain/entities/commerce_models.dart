@@ -11,6 +11,7 @@ class FreightRate {
     required this.description,
     required this.isReference,
     required this.isActive,
+    this.allowsCoffeeExport = false,
   });
   final String id; // Identifica la tarifa que puede editar el administrador.
   final String title; // Describe el servicio de importación.
@@ -23,6 +24,12 @@ class FreightRate {
   final bool
   isReference; // Señala los valores ilustrativos que no son cotizaciones.
   final bool isActive; // Permite retirar una tarifa de la tienda.
+  final bool allowsCoffeeExport; // Habilita esta ruta para solicitudes de café.
+  bool get isCoffeeExportAvailable =>
+      isActive &&
+      allowsCoffeeExport &&
+      unit.trim().toLowerCase() ==
+          'kg'; // Excluye servicios por volumen y rutas desactivadas.
   factory FreightRate.fromMap(Map<String, dynamic> map) => FreightRate(
     id: map['id'],
     title: map['title'],
@@ -34,6 +41,7 @@ class FreightRate {
     description: map['description'],
     isReference: map['is_reference'],
     isActive: map['is_active'],
+    allowsCoffeeExport: map['allows_coffee_export'] == true,
   );
 }
 
@@ -169,17 +177,26 @@ class SupportConversation {
     required this.clientId,
     required this.clientName,
     required this.unreadCount,
+    this.channel =
+        'support', // Conserva la compatibilidad con conversaciones anteriores al flujo de envíos.
+    this.exportRequestId,
   });
   final String id; // Identifica el chat al que se enviarán mensajes.
   final String clientId; // Identifica al titular de la conversación.
   final String clientName; // Permite al trabajador reconocer cada solicitud.
   final int unreadCount; // Muestra las respuestas y solicitudes nuevas.
+  final String
+  channel; // Separa atención general, expedientes de exportación y coordinación de transporte.
+  final String?
+  exportRequestId; // Identifica la exportación a la que corresponde el chat alterno.
   factory SupportConversation.fromMap(Map<String, dynamic> map) =>
       SupportConversation(
         id: map['id'],
         clientId: map['client_id'],
         clientName: map['client_name'],
         unreadCount: (map['unread_count'] as num).toInt(),
+        channel: map['channel'] ?? 'support',
+        exportRequestId: map['export_request_id'],
       );
 }
 
@@ -192,6 +209,7 @@ class SupportMessage {
     required this.kind,
     required this.createdAt,
     this.requestId,
+    this.exportRequestId,
   });
   final String id; // Permite registrar hasta qué mensaje se leyó el chat.
   final String
@@ -202,6 +220,8 @@ class SupportMessage {
   final DateTime createdAt; // Ordena la conversación cronológicamente.
   final String?
   requestId; // Permite abrir el expediente mencionado por una notificación.
+  final String?
+  exportRequestId; // Evita confundir una exportación con una solicitud de convenio.
   factory SupportMessage.fromMap(Map<String, dynamic> map) => SupportMessage(
     id: map['id'],
     senderId: map['sender_id'],
@@ -209,5 +229,6 @@ class SupportMessage {
     kind: map['kind'],
     createdAt: DateTime.parse(map['created_at']),
     requestId: map['request_id'],
+    exportRequestId: map['export_request_id'],
   );
 }

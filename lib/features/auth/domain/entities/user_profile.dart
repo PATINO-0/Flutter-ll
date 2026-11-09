@@ -50,8 +50,18 @@ class UserProfile {
   bool get canCreateShipments =>
       canManageOperations || effectiveRole == UserRole.associate;
 
-  /// Reserva el catálogo y la solicitud inicial al cliente, conservando acceso total para administración.
-  bool get canAccessStore => isAdmin || effectiveRole == UserRole.client;
+  /// Permite al asociado registrar únicamente sus cultivos y lotes.
+  bool get canAccessCoffee =>
+      canManageOperations || effectiveRole == UserRole.associate;
+
+  /// Limita el espacio de transporte a su rol específico y a administración.
+  bool get canTransport => isAdmin || effectiveRole == UserRole.transporter;
+
+  /// Permite consultar las tarifas al cliente y al asociado, además de administración.
+  bool get canAccessStore =>
+      isAdmin ||
+      effectiveRole == UserRole.client ||
+      effectiveRole == UserRole.associate;
 
   factory UserProfile.fromMap(Map<String, dynamic> map) {
     final createdAt = DateTime.parse(

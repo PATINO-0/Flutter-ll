@@ -11,7 +11,16 @@ enum UserRole {
     'Asociado',
     'Gestiona sus envíos, exportaciones y seguimiento.',
   ),
-  worker('worker', 'Trabajador', 'Gestiona clientes y operaciones de Ritech.');
+  worker(
+    'worker',
+    'Trabajador',
+    'Gestiona clientes y revisa convenios y exportaciones.',
+  ),
+  transporter(
+    'transporter',
+    'Transportador',
+    'Toma envíos compatibles y actualiza su recogida, ubicación y entrega.',
+  );
 
   /// Relaciona el identificador de la base de datos con su texto visible.
   const UserRole(this.value, this.label, this.description);
@@ -22,9 +31,11 @@ enum UserRole {
 
   /// Define una jerarquía explícita que no depende del orden de la enumeración.
   int get priority => switch (this) {
-    UserRole.admin => 4, // Administración conserva acceso a todos los módulos.
+    UserRole.admin => 5, // Administración conserva acceso a todos los módulos.
     UserRole.worker =>
-      3, // El personal atiende clientes y gestiona operaciones.
+      4, // El personal atiende clientes y gestiona operaciones.
+    UserRole.transporter =>
+      3, // El transportador tiene un espacio operativo restringido.
     UserRole.associate =>
       2, // Los asociados acceden a sus operaciones de comercio.
     UserRole.client => 1, // El cliente accede al catálogo y a su vinculación.

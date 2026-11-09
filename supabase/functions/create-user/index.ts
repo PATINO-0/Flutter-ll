@@ -78,7 +78,13 @@ export async function handleRequest(request: Request): Promise<Response> {
       : ""; // Normaliza el correo de acceso.
     const password = typeof body.password === "string" ? body.password : ""; // Conserva la contraseña sin modificarla.
     const roles = body.roles; // Obtiene la selección de permisos solicitada.
-    const allowedRoles = ["admin", "client", "associate", "worker"]; // Comparte los identificadores admitidos en la base de datos.
+    const allowedRoles = [
+      "admin",
+      "client",
+      "associate",
+      "worker",
+      "transporter",
+    ]; // Incluye transporte sin conceder permisos de empleado.
     if (
       fullName.length < 3 || fullName.length > 100 ||
       !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ||

@@ -132,7 +132,7 @@ void main() {
     (tester) async {
       tester.view.physicalSize = const Size(
         1280,
-        900,
+        1100,
       ); // Reproduce el diseño de escritorio con etiquetas visibles.
       tester.view.devicePixelRatio =
           1; // Evita depender de la escala del equipo de pruebas.
@@ -307,7 +307,7 @@ void main() {
     await tester
         .pumpAndSettle(); // Espera la redirección provocada por la sesión nueva.
     expect(
-      find.text('Tienda de servicios de importación'),
+      find.text('Tienda de tarifas y destinos'),
       findsOneWidget,
     ); // Muestra el panel personalizado.
     expect(
@@ -364,7 +364,7 @@ void main() {
         AppRoutes.dashboard,
       );
       expect(
-        find.text('Tienda de servicios de importación'),
+        find.text('Tienda de tarifas y destinos'),
         findsOneWidget,
       ); // Conserva el acceso a las funciones propias.
     },

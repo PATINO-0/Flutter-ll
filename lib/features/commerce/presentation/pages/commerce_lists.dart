@@ -8,6 +8,7 @@ import '../widgets/commerce_widgets.dart'; // Reutiliza estados y errores.
 import 'association_form_page.dart'; // Permite iniciar o corregir la solicitud de un cliente.
 import 'association_detail_page.dart'; // Permite revisar datos y tomar una decisión.
 import 'support_chat_page.dart'; // Abre el canal de atención correspondiente.
+import '../../../exports/presentation/export_providers.dart'; // Abre la coordinación restringida con el transportador.
 
 /// Presenta los intentos del cliente o la bandeja de revisión del personal.
 class AssociationRequestsPage extends ConsumerWidget {
@@ -220,12 +221,20 @@ class CustomerAccountsPage extends ConsumerWidget {
 
 /// Muestra notificaciones de solicitudes y respuestas mediante una bandeja de atención.
 class SupportInboxPage extends ConsumerStatefulWidget {
-  const SupportInboxPage({super.key});
+  const SupportInboxPage({this.channel = 'support', super.key});
+  final String
+  channel; // Mantiene las solicitudes de envío fuera de la atención general.
   @override
   ConsumerState<SupportInboxPage> createState() => _SupportInboxPageState();
 }
 
 class _SupportInboxPageState extends ConsumerState<SupportInboxPage> {
+  bool _matches(SupportConversation item, bool staff) =>
+      widget.channel == 'exports'
+      ? (item.channel == 'exports' || staff && item.channel == 'transport')
+      : item.channel ==
+            widget
+                .channel; // La base de datos mantiene además el aislamiento por participante.
   Timer?
   _timer; // Renueva el contador de mensajes mientras la bandeja está visible.
   @override
@@ -247,14 +256,22 @@ class _SupportInboxPageState extends ConsumerState<SupportInboxPage> {
     final profile = ref.read(currentUserProfileProvider).asData?.value;
     if (profile == null) return;
     try {
-      final id = await ref
-          .read(commerceRepositoryProvider)
-          .openConversation(profile.id);
+      final id = widget.channel == 'transport'
+          ? await ref
+                .read(coffeeExportsRepositoryProvider)
+                .transportConversation(profile.id)
+          : await ref
+                .read(commerceRepositoryProvider)
+                .openConversation(profile.id);
       if (mounted) {
         Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) =>
-                SupportChatPage(conversationId: id, title: 'Atención Ritech'),
+            builder: (_) => SupportChatPage(
+              conversationId: id,
+              title: widget.channel == 'transport'
+                  ? 'Chat con el empleado'
+                  : 'Atención Ritech',
+            ),
           ),
         );
       }
@@ -273,16 +290,26 @@ class _SupportInboxPageState extends ConsumerState<SupportInboxPage> {
             ?.canManageOperations ==
         true;
     return CommerceSection(
-      title: staff ? 'Atención a clientes' : 'Chat de atención',
+      title: widget.channel == 'exports'
+          ? 'Envíos y coordinación'
+          : widget.channel == 'transport'
+          ? 'Chat con el empleado'
+          : staff
+          ? 'Atención a clientes'
+          : 'Chat de atención',
       actions: [
         OutlinedButton(
           onPressed: () => ref.invalidate(conversationsProvider),
           child: const Text('Actualizar'),
         ),
-        if (!staff)
+        if (!staff && widget.channel != 'exports')
           FilledButton(
             onPressed: _openOwn,
-            child: const Text('Hablar con Ritech'),
+            child: Text(
+              widget.channel == 'transport'
+                  ? 'Contactar al empleado'
+                  : 'Hablar con Ritech',
+            ),
           ),
       ],
       children: [
@@ -291,11 +318,11 @@ class _SupportInboxPageState extends ConsumerState<SupportInboxPage> {
           onRetry: () => ref.invalidate(conversationsProvider),
           builder: (List<SupportConversation> items) => Column(
             children: [
-              if (items.isEmpty)
+              if (items.where((item) => _matches(item, staff)).isEmpty)
                 const Text(
                   'Todavía no hay conversaciones. Las solicitudes enviadas aparecerán aquí.',
                 ),
-              for (final item in items)
+              for (final item in items.where((item) => _matches(item, staff)))
                 Card(
                   child: ListTile(
                     leading: Badge(
@@ -303,7 +330,11 @@ class _SupportInboxPageState extends ConsumerState<SupportInboxPage> {
                       label: Text('${item.unreadCount}'),
                       child: const Icon(Icons.chat_outlined),
                     ),
-                    title: Text(staff ? item.clientName : 'Atención Ritech'),
+                    title: Text(
+                      widget.channel != 'support' || staff
+                          ? item.clientName
+                          : 'Atención Ritech',
+                    ),
                     subtitle: Text(
                       item.unreadCount > 0
                           ? '${item.unreadCount} mensajes nuevos'
@@ -313,7 +344,9 @@ class _SupportInboxPageState extends ConsumerState<SupportInboxPage> {
                       MaterialPageRoute<void>(
                         builder: (_) => SupportChatPage(
                           conversationId: item.id,
-                          title: staff ? item.clientName : 'Atención Ritech',
+                          title: widget.channel != 'support' || staff
+                              ? item.clientName
+                              : 'Atención Ritech',
                         ),
                       ),
                     ),

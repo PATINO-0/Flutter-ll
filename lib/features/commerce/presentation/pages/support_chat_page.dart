@@ -6,6 +6,8 @@ import '../../domain/entities/commerce_models.dart'; // Representa los mensajes 
 import '../providers/commerce_providers.dart'; // Accede al servicio de atención.
 import '../widgets/commerce_widgets.dart'; // Presenta errores recuperables.
 import 'association_detail_page.dart'; // Permite abrir una solicitud desde su notificación.
+import '../../../exports/presentation/export_pages.dart'; // Abre el expediente de una exportación para su titular o revisor.
+import '../../../exports/presentation/transport_pages.dart'; // Mantiene el espacio del transportador sin acceso a documentos financieros.
 
 /// Mantiene el historial del cliente y del personal dentro de la misma conversación.
 class SupportChatPage extends ConsumerStatefulWidget {
@@ -101,6 +103,14 @@ class _SupportChatPageState extends ConsumerState<SupportChatPage> {
     final userId = ref
         .watch(authRepositoryProvider)
         .currentUserId; // Distingue mensajes propios sin confiar en el texto del remitente.
+    final transporter =
+        ref
+            .watch(currentUserProfileProvider)
+            .asData
+            ?.value
+            ?.effectiveRole
+            ?.value ==
+        'transporter'; // Limita el enlace de una notificación al espacio autorizado del transportador.
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -199,6 +209,32 @@ class _SupportChatPageState extends ConsumerState<SupportChatPage> {
                                             ),
                                         child: const Text(
                                           'Ver solicitud y documentos',
+                                        ),
+                                      ),
+                                    if (item.exportRequestId != null)
+                                      TextButton(
+                                        onPressed: () => Navigator.of(context).push(
+                                          MaterialPageRoute<void>(
+                                            builder: (_) => transporter
+                                                ? Scaffold(
+                                                    appBar: AppBar(
+                                                      title: const Text(
+                                                        'Envíos de café',
+                                                      ),
+                                                    ),
+                                                    body:
+                                                        const TransportJobsPage(),
+                                                  )
+                                                : CoffeeExportDetailPage(
+                                                    requestId:
+                                                        item.exportRequestId!,
+                                                  ),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          transporter
+                                              ? 'Ver envíos para tomar o actualizar'
+                                              : 'Ver exportación y documentos',
                                         ),
                                       ),
                                   ],

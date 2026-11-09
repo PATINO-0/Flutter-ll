@@ -58,8 +58,8 @@ create unique index export_one_reserved_lot on public.export_requests(lot_id) wh
 create index export_requests_owner_date on public.export_requests(owner_id,created_at desc);
 create table public.export_documents(
   request_id uuid not null references public.export_requests(id),kind text not null check(kind in('commercial_invoice','packing_list','quality_record')),
-  storage_path text not null unique,original_name text not null check(length(original_name) between 1 and 200),uploaded_at timestamptz not null default now(),
-  primary key(request_id,kind)
+  storage_path text not null,original_name text not null check(length(original_name) between 1 and 200),uploaded_at timestamptz not null default now(),
+  primary key(request_id,kind),unique(request_id,storage_path)
 );
 create table public.export_charges(
   id uuid primary key default gen_random_uuid(),request_id uuid not null unique references public.export_requests(id),
@@ -68,7 +68,7 @@ create table public.export_charges(
 ); -- Registra cargos autorizados dentro de Ritech; no ejecuta débitos bancarios ni marca pagos ficticios.
 
 create function public.can_manage_coffee_owner(target_owner uuid) returns boolean language sql stable security definer set search_path='' as $$
-  select public.is_active_user() and(public.is_staff() or(target_owner=auth.uid() and public.effective_role()='associate'));
+  select coalesce(public.is_active_user() and(public.is_staff() or(target_owner=auth.uid() and public.effective_role()='associate')),false);
 $$;
 create function public.save_coffee_cultivation(target_id uuid,target_owner uuid,cultivation_name text,farm text,cultivation_location text,coffee_variety text,hectares numeric) returns uuid
 language plpgsql security definer set search_path='' as $$
@@ -115,7 +115,7 @@ end;
 $$;
 
 create function public.start_coffee_export(target_lot uuid) returns uuid language plpgsql security definer set search_path='' as $$
-declare lot public.coffee_lots;existing public.export_requests;result_id uuid;
+declare lot public.coffee_lots;existing public.export_requests;last_rejected public.export_requests;result_id uuid;
 begin
   select * into lot from public.coffee_lots where id=target_lot for update; -- Serializa la reserva del mismo lote entre dos solicitudes.
   if not found or not public.can_manage_coffee_owner(lot.owner_id) or lot.cultivation_id is null or lot.lot_code is null then raise exception 'Selecciona un lote propio con cultivo y código registrados.' using errcode='42501';end if;
@@ -126,6 +126,11 @@ begin
     raise exception 'El lote ya tiene una solicitud pendiente o una exportación aprobada.' using errcode='P0001';
   end if;
   insert into public.export_requests(owner_id,lot_id,origin) values(lot.owner_id,lot.id,lot.origin) returning id into result_id;
+  select * into last_rejected from public.export_requests where lot_id=target_lot and status='rejected' order by created_at desc,id desc limit 1;
+  if found then
+    update public.export_requests set origin=last_rejected.origin,destination=last_rejected.destination,recipient_name=last_rejected.recipient_name,recipient_phone=last_rejected.recipient_phone where id=result_id;
+    insert into public.export_documents(request_id,kind,storage_path,original_name) select result_id,kind,storage_path,original_name from public.export_documents where request_id=last_rejected.id; -- Conserva soportes inmutables y permite reemplazar únicamente los que necesiten corrección.
+  end if;
   return result_id;
 end;
 $$;
@@ -136,6 +141,7 @@ begin
   if not found or not public.can_manage_coffee_owner(request_row.owner_id) then raise exception 'No tienes acceso a esta solicitud.' using errcode='42501';end if;
   select * into lot from public.coffee_lots where id=request_row.lot_id;
   select * into pricing from public.coffee_export_pricing where id=true;
+  if round(lot.weight_kg*pricing.rate_per_kg,2)<=0 or round(lot.weight_kg*pricing.rate_per_kg,2)>=10000000000000000 then raise exception 'El peso y la tarifa no producen un importe válido. Solicita revisión del costo al administrador.' using errcode='22023';end if;
   return jsonb_build_object('weight_kg',lot.weight_kg,'rate_per_kg',pricing.rate_per_kg,'currency',pricing.currency,'total_cost',round(lot.weight_kg*pricing.rate_per_kg,2),'is_reference',pricing.is_reference);
 end;
 $$;

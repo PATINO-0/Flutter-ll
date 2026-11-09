@@ -11,6 +11,7 @@ async function scenario(
     token?: boolean;
     databaseError?: string;
     userId?: string;
+    roles?: string[]; // Comprueba cambios con varias responsabilidades asignadas.
   } = {},
 ) {
   const originalFetch = globalThis.fetch; // Impide cualquier petición real durante la prueba.
@@ -74,7 +75,7 @@ async function scenario(
           userId: options.userId ?? target,
           fullName: "Nombre nuevo",
           email: "new@example.com",
-          roles: ["client"],
+          roles: options.roles ?? ["client"],
         }),
       }),
     );
@@ -126,6 +127,18 @@ Deno.test("La protección del último administrador revierte los cambios previos
   assert(
     result.calls.at(-1)?.body.email === "old@example.com",
     "Debe restablecer el correo anterior si el servidor rechaza el cambio",
+  );
+});
+Deno.test("La edición conserva todos los roles seleccionados, incluido transporte", async () => {
+  const roles = ["client", "worker", "transporter"];
+  const result = await scenario("update", { roles });
+  const update = result.calls.find((call) =>
+    call.path.endsWith("/admin_update_user")
+  );
+  assert(
+    result.status === 200 &&
+      JSON.stringify(update?.body.new_roles) === JSON.stringify(roles),
+    "Debe enviar la selección completa al servidor sin sustituirla por el rol predominante",
   );
 });
 Deno.test("La eliminación de acceso revoca primero los datos y después bloquea Auth", async () => {

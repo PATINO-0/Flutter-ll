@@ -2,12 +2,13 @@
 
 ## Permisos efectivos
 
-Predomina el mayor nivel: **Administrador > Trabajador > Asociado > Cliente**. Los roles asignados se conservan; la aprobación añade `associate` y su mayor nivel sustituye la navegación inicial de cliente.
+Predomina el mayor nivel: **Administrador > Trabajador > Transportador > Asociado > Cliente**. Los roles asignados se conservan; la aprobación añade `associate` y su mayor nivel sustituye la navegación inicial de cliente. El transportador utiliza un panel limitado a sus cargas y chats, sin permisos generales de trabajador.
 
 | Rol efectivo | Funciones |
 | --- | --- |
 | Cliente | Tienda de servicios, requisitos de vinculación, sus solicitudes y chat de atención. |
-| Asociado | Sus envíos, exportaciones, seguimiento y chat. No consulta operaciones de otros asociados. |
+| Asociado | Tienda de tarifas y destinos; sus cultivos, lotes, convenios, envíos, exportaciones, seguimiento y chat. No consulta operaciones de otros asociados. |
+| Transportador | Cargas disponibles, sus asignaciones, actualización de entregas y chat de transporte. |
 | Trabajador | Clientes y asociados, solicitudes, convenios y sus documentos, operaciones, seguimiento, café y conversaciones de atención. |
 | Administrador | Todos los módulos anteriores, precios de la tienda y administración de usuarios. |
 
@@ -47,25 +48,23 @@ Los documentos usan URLs autorizadas de un minuto de duración. Una URL ya emiti
 
 Las tres tarifas iniciales son **ejemplos ilustrativos**, no precios reales ni cotizaciones vigentes. El administrador puede crear tarifas, editar su precio y condiciones y desactivarlas desde la tienda. Sustituye estos valores por información comercial aprobada antes de ofrecer cotizaciones a clientes.
 
-Los asociados registran importaciones y exportaciones propias; el personal puede registrar operaciones para asociados. Cada operación obtiene un código de seguimiento y conserva los eventos registrados por el personal. Un trabajador no puede reabrir envíos entregados o cancelados mediante una transición ordinaria; el administrador puede corregir estados. El seguimiento refleja los eventos registrados en Ritech y no está conectado automáticamente con transportadoras.
-
-El módulo Café permite al personal registrar, editar y retirar lotes con origen, peso y observaciones.
+Las solicitudes se realizan desde Exportaciones y actualmente corresponden solo a café. Requieren un cultivo y lote propios, documentos y autorización del importe por peso. El trabajador revisa; el transportador asignado actualiza los estados y confirma la entrega. Café permite gestionar cultivos y lotes propios al asociado y todos los registros al personal. La [guía de exportaciones y transporte](coffee_exports_and_transport.md) describe las reglas actuales, los chats separados, el archivo documental y el despliegue adicional.
 
 ## Despliegue
 
-Desde la raíz del repositorio, aplica las cuatro migraciones en orden y despliega las dos funciones. El CLI registra las migraciones ya aplicadas y solo ejecuta las pendientes:
+Desde la raíz del repositorio, aplica las siete migraciones en orden y despliega las tres funciones. El CLI registra las migraciones ya aplicadas y solo ejecuta las pendientes:
 
 ```powershell
 npx supabase@3.0.0 login
 npx supabase@3.0.0 link --project-ref mdlcewexhzskapxiklsm
 npx supabase@3.0.0 db push --remote --dry-run
 npx supabase@3.0.0 db push --remote --yes
-npx supabase@3.0.0 functions deploy create-user manage-user --use-api --yes
+npx supabase@3.0.0 functions deploy create-user manage-user seed-transporters --use-api --yes
 ```
 
-Si el esquema se aplicó manualmente desde el editor SQL, sincroniza primero su historial de migraciones; no vuelvas a ejecutar la primera migración sobre tablas que ya existen. Las migraciones nuevas son `20261108020000_association_workflow.sql` y `20261108030000_commercial_operations.sql`.
+Si el esquema se aplicó manualmente desde el editor SQL, sincroniza primero su historial de migraciones; no vuelvas a ejecutar la primera migración sobre tablas que ya existen. Después de las migraciones de convenios y operaciones se aplican `20261108040000_coffee_export_requests.sql`, `20261108050000_export_dispatch_and_channels.sql` y `20261108060000_export_freight_routes.sql`.
 
-El archivo de configuración mantiene `verify_jwt = false` para compatibilidad con las claves publicables. Ambas funciones validan el token con Supabase Auth y consultan administración antes de utilizar la clave de servidor. No copies la clave administrativa a Flutter. El depósito `agreement-documents` y sus políticas se crean mediante la migración.
+El archivo de configuración mantiene `verify_jwt = false` para compatibilidad con las claves publicables. Las tres funciones validan el token con Supabase Auth y consultan administración antes de utilizar la clave de servidor. No copies la clave administrativa a Flutter. Los depósitos privados y sus políticas se crean mediante las migraciones.
 
 ## Verificación
 

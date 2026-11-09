@@ -12,7 +12,9 @@ import '../widgets/dashboard_home.dart'; // Presenta la bienvenida y los permiso
 import '../../../commerce/presentation/pages/store_page.dart'; // Presenta la tienda reservada al cliente y al administrador.
 import '../../../commerce/presentation/pages/commerce_lists.dart'; // Integra clientes, solicitudes, convenios y atención.
 import '../../../commerce/presentation/providers/commerce_providers.dart'; // Actualiza notificaciones y cambios de rol.
-import '../../../operations/presentation/operations_pages.dart'; // Integra envíos, seguimiento, exportaciones y lotes de café.
+import '../../../exports/presentation/coffee_crops_page.dart'; // Presenta cultivos propios para asociados y el inventario completo al personal.
+import '../../../exports/presentation/export_pages.dart'; // Separa solicitudes, seguimiento activo y entregas realizadas.
+import '../../../exports/presentation/transport_pages.dart'; // Integra toma de cargas y coordinación con empleados.
 
 /// Adapta las opciones de navegación a los roles asignados en el servidor.
 class DashboardPage extends ConsumerStatefulWidget {
@@ -64,14 +66,38 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
   /// Construye solamente las opciones que corresponden a las responsabilidades del perfil.
   List<_DashboardSection> _sectionsFor(UserProfile profile) {
-    final unread = profile.roles.isEmpty
-        ? 0
-        : ref
-                  .watch(conversationsProvider)
-                  .asData
-                  ?.value
-                  .fold<int>(0, (count, item) => count + item.unreadCount) ??
-              0; // Agrega los avisos nuevos del chat autorizado.
+    final conversations = profile.roles.isEmpty
+        ? null
+        : ref.watch(conversationsProvider).asData?.value;
+    final supportUnread =
+        conversations
+            ?.where((item) => item.channel == 'support')
+            .fold<int>(0, (count, item) => count + item.unreadCount) ??
+        0;
+    final exportUnread =
+        conversations
+            ?.where((item) => item.channel == 'exports')
+            .fold<int>(0, (count, item) => count + item.unreadCount) ??
+        0;
+    final transportUnread =
+        conversations
+            ?.where((item) => item.channel == 'transport')
+            .fold<int>(0, (count, item) => count + item.unreadCount) ??
+        0; // Cada bandeja muestra solo sus propias notificaciones.
+    if (profile.effectiveRole?.value == 'transporter') {
+      return [
+        _DashboardSection(
+          'Envíos',
+          Icons.local_shipping_outlined,
+          exportUnread,
+        ),
+        _DashboardSection(
+          'Chat de transporte',
+          Icons.chat_outlined,
+          transportUnread,
+        ),
+      ];
+    } // El transportador no hereda los módulos del empleado.
     return [
       if (profile.effectiveRole?.value != 'client')
         const _DashboardSection(
@@ -80,28 +106,47 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
         ), // El cliente entra directamente a su tienda.
       if (profile.canAccessStore)
         const _DashboardSection('Tienda', Icons.storefront_outlined),
-      if (profile.canAccessStore || profile.canManageOperations)
+      if (profile.effectiveRole?.value == 'client' ||
+          profile.canManageOperations)
         const _DashboardSection('Solicitudes', Icons.assignment_outlined),
       if (profile.canCreateShipments)
         const _DashboardSection('Mis envíos', Icons.inventory_2_outlined),
       if (profile.canCreateShipments)
         const _DashboardSection('Seguimiento', Icons.location_on_outlined),
-      if (profile.canManageOperations)
+      if (profile.canManageAgreements)
         const _DashboardSection('Convenios', Icons.handshake_outlined),
       if (profile.canCreateShipments)
         const _DashboardSection('Exportaciones', Icons.local_shipping_outlined),
+      if (profile.canAccessCoffee)
+        const _DashboardSection('Café', Icons.coffee_outlined),
       if (profile.canManageOperations) ...[
-        const _DashboardSection(
-          'Café',
-          Icons.coffee_outlined,
-        ), // Conserva el módulo existente de productos.
         const _DashboardSection(
           'Clientes',
           Icons.business_outlined,
         ), // Reserva la gestión interna a trabajadores.
       ],
+      if (profile.canCreateShipments)
+        _DashboardSection(
+          'Chat de Envíos',
+          Icons.forum_outlined,
+          exportUnread + transportUnread,
+        ),
+      if (profile.canManageOperations)
+        const _DashboardSection(
+          'Transportadores',
+          Icons.airport_shuttle_outlined,
+        ),
+      if (profile.isAdmin)
+        const _DashboardSection(
+          'Operación de transporte',
+          Icons.route_outlined,
+        ),
       if (profile.roles.isNotEmpty)
-        _DashboardSection('Chat de atención', Icons.chat_outlined, unread),
+        _DashboardSection(
+          'Chat de atención',
+          Icons.chat_outlined,
+          supportUnread,
+        ),
       if (profile.isAdmin)
         const _DashboardSection(
           'Administración de usuarios',
@@ -144,13 +189,22 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   Widget _buildContent(UserProfile profile, _DashboardSection section) {
     switch (section.title) {
       case 'Mis envíos':
-        return const ShipmentsPage();
+        return const CoffeeShipmentHistoryPage();
       case 'Exportaciones':
-        return const ShipmentsPage(title: 'Exportaciones', exportsOnly: true);
+        return const CoffeeExportsPage();
       case 'Seguimiento':
-        return const ShipmentsPage(title: 'Seguimiento', tracking: true);
+        return const CoffeeShipmentHistoryPage(tracking: true);
       case 'Café':
-        return const CoffeeLotsPage();
+        return const CoffeeCropsPage();
+      case 'Envíos':
+      case 'Operación de transporte':
+        return const TransportJobsPage();
+      case 'Chat de transporte':
+        return const SupportInboxPage(channel: 'transport');
+      case 'Chat de Envíos':
+        return const SupportInboxPage(channel: 'exports');
+      case 'Transportadores':
+        return const TransporterDirectoryPage();
       case 'Tienda':
         return const StorePage();
       case 'Solicitudes':
